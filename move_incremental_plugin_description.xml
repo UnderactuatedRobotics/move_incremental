@@ -1,0 +1,7 @@
+<library path="lib/libmove_incremental">
+  <class name="move_incremental/MoveIncrementalROS" type="move_incremental::MoveIncrementalROS" base_class_type="nav_core::BaseGlobalPlanner">
+    <description>
+      A implementation of D* Lite global path planner
+    </description>
+  </class>
+</library>

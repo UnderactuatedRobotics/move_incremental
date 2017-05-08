@@ -1,0 +1,49 @@
+<package>
+    <name>move_incremental</name>
+    <version>1.0.0</version>
+    <description>
+	incremental path planning - implementation of D* Lite for MIT 16.412 Cognitive Robotics Grand Challenge.
+    </description>
+    <author email="yijiangh@mit.edu">Yijiang Huang</author>
+    <author email="sunfei@mit.edu">Fei Sun</author>
+    <author email="gr24939@mit.edu">Gregory Allan</author>
+    <author email="sgueglia@mit.edu">John Sgueglia</author>
+    <author email="sylviad@mit.edu">Siyu Dai</author>
+    <maintainer email="yijiangh@mit.edu">Yijiang Huang</maintainer>
+    <maintainer email="sunfei@mit.edu">Fei Sun</maintainer>
+    <license>BSD</license>
+
+    <buildtool_depend>catkin</buildtool_depend>
+
+    <build_depend>cmake_modules</build_depend>
+    <build_depend>costmap_2d</build_depend>
+    <build_depend>geometry_msgs</build_depend>
+    <build_depend>message_generation</build_depend>
+    <build_depend>nav_core</build_depend>
+    <build_depend>nav_msgs</build_depend>
+    <build_depend>netpbm</build_depend> <!-- This is a test dependency -->
+    <build_depend>pcl_conversions</build_depend>
+    <build_depend>pcl_ros</build_depend>
+    <build_depend>pluginlib</build_depend>
+    <build_depend>rosconsole</build_depend>
+    <build_depend>roscpp</build_depend>
+    <build_depend>tf</build_depend>
+    <build_depend>visualization_msgs</build_depend>
+
+    <run_depend>costmap_2d</run_depend>
+    <run_depend>geometry_msgs</run_depend>
+    <run_depend>message_runtime</run_depend>
+    <run_depend>nav_core</run_depend>
+    <run_depend>nav_msgs</run_depend>
+    <run_depend>pcl_conversions</run_depend>
+    <run_depend>pcl_ros</run_depend>
+    <run_depend>pluginlib</run_depend>
+    <run_depend>rosconsole</run_depend>
+    <run_depend>roscpp</run_depend>
+    <run_depend>tf</run_depend>
+    <run_depend>visualization_msgs</run_depend>
+
+    <export>
+        <nav_core plugin="${prefix}/move_incremental_plugin_description.xml" />
+    </export>
+</package>
