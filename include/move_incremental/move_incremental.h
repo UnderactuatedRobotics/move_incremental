@@ -50,7 +50,7 @@
 #define COST_OBS 254        // 254 for forbidden regions
 #define COST_OBS_ROS 253    // ROS values of 253 are obstacles
 
-// navfn cost values are set to
+// MoveIncremental cost values are set to
 // COST_NEUTRAL + COST_FACTOR * costmap_cost_value.
 // Incoming costmap cost values are in the range 0 to 252.
 // With COST_NEUTRAL of 50, the COST_FACTOR needs to be about 0.8 to
@@ -61,7 +61,7 @@
 // will not plan paths down the center.
 
 #define COST_NEUTRAL 50        // Set this to "open space" value
-#define COST_FACTOR 0.8        // Used for translating costs in NavFn::setCostmap()
+#define COST_FACTOR 0.8        // Used for translating costs in MoveIncremental::setCostmap()
 
 // Define the cost type in the case that it is not set. However, this allows
 // clients to modify it without changing the file. Arguably, it is better to require it to
@@ -95,7 +95,7 @@ namespace move_incremental
                               float *plan, int nplan);
     /**
      * @class MoveIncremental
-     * @brief Navigation function class. Holds buffers for costmap, navfn map. Maps are pixel-based. Origin is upper left, x is right, y is down.
+     * @brief Navigation function class. Holds buffers for costmap, MoveIncremental map. Maps are pixel-based. Origin is upper left, x is right, y is down.
      */
     class MoveIncremental {
     public:
@@ -252,9 +252,9 @@ namespace move_incremental
         float pathStep;        /**< step size for following gradient */
 
         /** display callback */
-        void display(void fn(NavFn *nav), int n = 100); /**< <n> is the number of cycles between updates  */
+        void display(void fn(MoveIncremental *nav), int n = 100); /**< <n> is the number of cycles between updates  */
         int displayInt;        /**< save second argument of display() above */
-        void (*displayFn)(NavFn *nav); /**< display function itself */
+        void (*displayFn)(MoveIncremental *nav); /**< display function itself */
 
         /** save costmap */
         void savemap(const char *fname); /**< write out costmap and start/goal states as fname.pgm and fname.txt */

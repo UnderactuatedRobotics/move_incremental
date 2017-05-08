@@ -58,34 +58,34 @@ namespace move_incremental
                           int* goal, int* start,
                           float *plan, int nplan)
     {
-        static NavFn *nav = NULL;
+        static MoveIncremental *nav = NULL;
 
         if (nav == NULL)
-            nav = new NavFn(nx,ny);
+            nav = new MoveIncremental(nx,ny);
 
         if (nav->nx != nx || nav->ny != ny) // check for compatibility with previous call
         {
             delete nav;
-            nav = new NavFn(nx,ny);
+            nav = new MoveIncremental(nx,ny);
         }
 
         nav->setGoal(goal);
         nav->setStart(start);
 
         nav->costarr = costmap;
-        nav->setupNavFn(true);
+        nav->setupMoveIncremental(true);
 
         // calculate the nav fn and path
         nav->priInc = 2*COST_NEUTRAL;
-        nav->propNavFnAstar(std::max(nx*ny/20,nx+ny));
+        nav->propMoveIncrementalAstar(std::max(nx*ny/20,nx+ny));
 
         // path
         int len = nav->calcPath(nplan);
 
         if (len > 0)			// found plan
-            ROS_DEBUG("[NavFn] Path found, %d steps\n", len);
+            ROS_DEBUG("[MoveIncremental] Path found, %d steps\n", len);
         else
-            ROS_DEBUG("[NavFn] No path found\n");
+            ROS_INFO("[MoveIncremental] No path found\n");
 
         if (len > 0)
         {
@@ -169,7 +169,7 @@ namespace move_incremental
     {
         goal[0] = g[0];
         goal[1] = g[1];
-        ROS_DEBUG("[MoveIncremental] Setting goal to %d,%d\n", goal[0], goal[1]);
+        ROS_INFO("[MoveIncremental] Setting goal to %d,%d\n", goal[0], goal[1]);
     }
 
     void
@@ -177,7 +177,7 @@ namespace move_incremental
     {
         start[0] = g[0];
         start[1] = g[1];
-        ROS_DEBUG("[MoveIncremental] Setting start to %d,%d\n", start[0], start[1]);
+        ROS_INFO("[MoveIncremental] Setting start to %d,%d\n", start[0], start[1]);
     }
 
     //
@@ -187,7 +187,7 @@ namespace move_incremental
     void
     MoveIncremental::setNavArr(int xs, int ys)
     {
-        ROS_DEBUG("[MoveIncremental] Array is %d x %d\n", xs, ys);
+        ROS_INFO("[MoveIncremental] Array is %d x %d\n", xs, ys);
 
         nx = xs;
         ny = ys;
@@ -300,12 +300,12 @@ namespace move_incremental
 
         if (len > 0)			// found plan
         {
-            ROS_DEBUG("[MoveIncremental] Path found, %d steps\n", len);
+            ROS_INFO("[MoveIncremental] Path found, %d steps\n", len);
             return true;
         }
         else
         {
-            ROS_DEBUG("[MoveIncremental] No path found\n");
+            ROS_INFO("[MoveIncremental] No path found\n");
             return false;
         }
 
@@ -329,12 +329,12 @@ namespace move_incremental
 
         if (len > 0)			// found plan
         {
-            ROS_DEBUG("[MoveIncremental] Path found, %d steps\n", len);
+            ROS_INFO("[MoveIncremental] Path found, %d steps\n", len);
             return true;
         }
         else
         {
-            ROS_DEBUG("[MoveIncremental] No path found\n");
+            ROS_INFO("[MoveIncremental] No path found\n");
             return false;
         }
     }
@@ -702,7 +702,7 @@ namespace move_incremental
                     break;
         }
 
-        ROS_DEBUG("[MoveIncremental] Used %d cycles, %d cells visited (%d%%), priority buf max %d\n",
+        ROS_INFO("[MoveIncremental] Used %d cycles, %d cells visited (%d%%), priority buf max %d\n",
                   cycle,nc,(int)((nc*100.0)/(ns-nobs)),nwv);
 
         if (cycle < cycles) return true; // finished up here
@@ -786,7 +786,7 @@ namespace move_incremental
 
         last_path_cost_ = potarr[startCell];
 
-        ROS_DEBUG("[MoveIncremental] Used %d cycles, %d cells visited (%d%%), priority buf max %d\n",
+        ROS_INFO("[MoveIncremental] Used %d cycles, %d cells visited (%d%%), priority buf max %d\n",
                   cycle,nc,(int)((nc*100.0)/(ns-nobs)),nwv);
 
 
@@ -852,7 +852,7 @@ namespace move_incremental
 
             if (stc < nx || stc > ns-nx) // would be out of bounds
             {
-                ROS_DEBUG("[PathCalc] Out of bounds");
+                ROS_INFO("[PathCalc] Out of bounds");
                 return 0;
             }
 
@@ -866,7 +866,7 @@ namespace move_incremental
                 pathx[npath-1] == pathx[npath-3] &&
                 pathy[npath-1] == pathy[npath-3] )
             {
-                ROS_DEBUG("[PathCalc] oscillation detected, attempting fix.");
+                ROS_INFO("[PathCalc] oscillation detected, attempting fix.");
                 oscillation_detected = true;
             }
 
@@ -885,7 +885,7 @@ namespace move_incremental
                 potarr[stcpx-1] >= POT_HIGH ||
                 oscillation_detected)
             {
-                ROS_DEBUG("[Path] Pot fn boundary, following grid (%0.1f/%d)", potarr[stc], npath);
+                ROS_INFO("[Path] Pot fn boundary, following grid (%0.1f/%d)", potarr[stc], npath);
                 // check eight neighbors to find the lowest
                 int minc = stc;
                 int minp = potarr[stc];
@@ -909,12 +909,12 @@ namespace move_incremental
                 dx = 0;
                 dy = 0;
 
-                ROS_DEBUG("[Path] Pot: %0.1f  pos: %0.1f,%0.1f",
+                ROS_INFO("[Path] Pot: %0.1f  pos: %0.1f,%0.1f",
                           potarr[stc], pathx[npath-1], pathy[npath-1]);
 
                 if (potarr[stc] >= POT_HIGH)
                 {
-                    ROS_DEBUG("[PathCalc] No path found, high potential");
+                    ROS_INFO("[PathCalc] No path found, high potential");
                     //savemap("MoveIncremental_highpot");
                     return 0;
                 }
@@ -940,7 +940,7 @@ namespace move_incremental
                 float y = (1.0-dy)*y1 + dy*y2; // interpolated y
 
                 // show gradients
-                ROS_DEBUG("[Path] %0.2f,%0.2f  %0.2f,%0.2f  %0.2f,%0.2f  %0.2f,%0.2f; final x=%.3f, y=%.3f\n",
+                ROS_INFO("[Path] %0.2f,%0.2f  %0.2f,%0.2f  %0.2f,%0.2f  %0.2f,%0.2f; final x=%.3f, y=%.3f\n",
                           gradx[stc], grady[stc], gradx[stc+1], grady[stc+1],
                           gradx[stcnx], grady[stcnx], gradx[stcnx+1], grady[stcnx+1],
                           x, y);
@@ -948,7 +948,7 @@ namespace move_incremental
                 // check for zero gradient, failed
                 if (x == 0.0 && y == 0.0)
                 {
-                    ROS_DEBUG("[PathCalc] Zero gradient");
+                    ROS_INFO("[PathCalc] Zero gradient");
                     return 0;
                 }
 
@@ -970,7 +970,7 @@ namespace move_incremental
         }
 
         //  return npath;			// out of cycles, return failure
-        ROS_DEBUG("[PathCalc] No path found, path too long");
+        ROS_INFO("[PathCalc] No path found, path too long");
         //savemap("MoveIncremental_pathlong");
         return 0;			// out of cycles, return failure
     }
@@ -1059,7 +1059,7 @@ namespace move_incremental
     {
         char fn[4096];
 
-        ROS_DEBUG("[MoveIncremental] Saving costmap and start/goal points");
+        ROS_INFO("[MoveIncremental] Saving costmap and start/goal points");
         // write start and goal points
         sprintf(fn,"%s.txt",fname);
         FILE *fp = fopen(fn,"w");

@@ -1,4 +1,4 @@
-ke_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 2.8.3)
 project(move_incremental)
 
 find_package(catkin REQUIRED
@@ -14,7 +14,8 @@ find_package(catkin REQUIRED
         roscpp
         tf
         visualization_msgs
-        )
+        message_generation
+	)
 
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
@@ -30,10 +31,9 @@ add_definitions(${EIGEN3_DEFINITIONS})
 
 # services
 add_service_files(
-    DIRECTORY srv
     FILES
-        srv/MakeNavPlan.srv
-        srv/SetCostmap.srv
+        MakeNavPlan.srv
+        SetCostmap.srv
 )
 
 generate_messages(

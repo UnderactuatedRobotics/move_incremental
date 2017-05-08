@@ -51,8 +51,8 @@
 #include <nav_msgs/GetPlan.h>
 #include <nav_msgs/Path.h>
 
-#include <move_incremental/navfn.h>
-#include <navfn/potarr_point.h>
+#include <move_incremental/move_incremental.h>
+#include <move_incremental/potarr_point.h>
 
 namespace move_incremental
 {
