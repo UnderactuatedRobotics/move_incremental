@@ -1,0 +1,77 @@
+<launch>
+    <arg name="pddl_domain_file" default="$(find cogrob)/data/sim-domain.pddl" />
+    <arg name="location_file" default="$(find cogrob)/data/sim-map.yaml" />
+    <!-- Bring up the simulator -->
+    <group>
+        <!-- For some reason, the summit simulator doesn't use cmd_vel. Fix that... -->
+        <remap from="/summit_xl/robot_control/command" to="/summit_xl/robot_control/cmd_vel" />
+        <include file="$(find summit_x_sim_bringup)/launch/summit_x_complete.launch" />
+        <include file="$(find summit_x_description)/launch/summit_x_state_robot.launch" />
+        <!-- Why, oh why can't Summit follow ROS standards? -->
+        <node name="laser_link_pub" pkg="tf2_ros" type="static_transform_publisher"
+              args="0 0 0 0 0 0 hokuyo_laser_link base_laser_link" />
+        <!-- Why, oh why does Summit put in a phantom rover_link that's not connected to anything? -->
+        <node name="rover_link_pub" pkg="tf2_ros" type="static_transform_publisher"
+              args="0 0 0 0 0 0 base_link rover_link" />
+    </group>
+    <!-- Spawn a simple world -->
+    <group>
+        <!-- Walls -->
+        <node name="spawn_walls_1" pkg="gazebo_ros" type="spawn_model"
+              args="-file $(find cogrob)/data/long_wall.urdf -urdf -y 5.2 -z 0.1 -model wall_1"
+              respawn="false" />
+        <node name="spawn_walls_2" pkg="gazebo_ros" type="spawn_model"
+              args="-file $(find cogrob)/data/long_wall.urdf -urdf -y -5.2 -z 0.1 -model wall_2"
+              respawn="false" />
+        <node name="spawn_walls_3" pkg="gazebo_ros" type="spawn_model"
+              args="-file $(find cogrob)/data/long_wall.urdf -urdf -x 5.2 -z 0.1 -Y 1.5707 -model wall_3"
+              respawn="false" />
+        <node name="spawn_walls_4" pkg="gazebo_ros" type="spawn_model"
+              args="-file $(find cogrob)/data/long_wall.urdf -urdf -x -5.2 -z 0.1 -Y 1.5707 -model wall_4"
+              respawn="false" />
+
+        <!-- locations  -->
+        <rosparam command="load" file="$(arg location_file)" />
+    </group>
+
+        <!-- Start up the nav stack for the X-WAM -->
+        <!-- This will eventually be replaced with student code! -->
+
+        <!-- Load up the truth map -->
+        <node name="truth_map_server" pkg="map_server" type="map_server"
+              args="$(find cogrob)/data/sim-grid.yaml" />
+
+        <!-- State estimation -->
+        <group>
+            <remap from="/scan" to="/hokuyo/scan" />
+            <include file="$(find amcl)/examples/amcl_omni.launch" />
+        </group>
+
+        <!-- Move base -->
+        <remap from="/cmd_vel" to="/summit_xl/robot_control/cmd_vel" />
+        <node pkg="move_base" type="move_base" name="move_base">
+	    <!-- OUR PLANNER IS HEREEEEEEEEEEEEEEEEEEE!!! -->
+	    <param name="base_global_planner" value="move_incremental/MoveIncrementalROS"/>
+	    <!-- OUR PLANNER ENDDDDDDDDDDDDDDDDDDDDDDD!!! -->
+	    <rosparam file="$(find cogrob)/data/costmap_common_params.yaml" command="load" ns="global_costmap" />
+            <rosparam file="$(find cogrob)/data/costmap_common_params.yaml" command="load" ns="local_costmap" />
+            <rosparam file="$(find cogrob)/data/global_costmap_params.yaml" command="load" />
+            <rosparam file="$(find cogrob)/data/local_costmap_params.yaml" command="load" />
+            <rosparam file="$(find cogrob)/data/base_local_planner_params.yaml" command="load" />
+        </node>
+
+    <!-- Start the mpex instance for the PDDL planning. -->
+    <group>
+        <include file="$(find mpex_launch)/launch/mpex.launch" />
+        <!-- Set the PDDL model -->
+        <include file="$(find mpex_launch)/launch/set_model.launch">
+            <arg name="file" value="$(arg pddl_domain_file)" />
+        </include>
+        <!-- Set the initial state -->
+        <node name="init_state_setter" pkg="mpex_tools" type="update_state"
+              args="$(find cogrob)/data/sim-init-state.yaml" />
+
+        <!-- Start the move_base handler -->
+        <node name="move_base_handler" pkg="cogrob" type="move_base_handler" />
+    </group>
+</launch>
