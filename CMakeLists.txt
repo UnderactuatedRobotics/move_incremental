@@ -20,6 +20,7 @@ find_package(catkin REQUIRED
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
 remove_definitions(-DDISABLE_LIBUSB-1.0)
+
 include_directories(
     include
     ${catkin_INCLUDE_DIRS}
@@ -27,7 +28,6 @@ include_directories(
     ${PCL_INCLUDE_DIRS}
 )
 add_definitions(${EIGEN3_DEFINITIONS})
-
 
 # services
 add_service_files(
@@ -54,7 +54,18 @@ catkin_package(
         pluginlib
 )
 
-add_library (move_incremental src/move_incremental.cpp src/move_incremental_ros.cpp include/move_incremental/move_incremental_ros.h include/move_incremental/move_incremental.h include/move_incremental/potarr_point.h src/move_incremental.cpp src/move_incremental_ros.cpp)
+set(HEADER_FILES
+		include/move_incremental/move_incremental.h
+		include/move_incremental/move_incremental_ros.h
+		)
+
+set(SRC_FILES
+		src/move_incremental.cpp
+		src/move_incremental_ros.cpp
+		include/move_incremental/potarr_point.h)
+
+add_library(${PROJECT_NAME} ${SRC_FILES} ${HEADER_FILES})
+
 target_link_libraries(move_incremental
     ${catkin_LIBRARIES}
     )

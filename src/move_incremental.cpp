@@ -31,18 +31,8 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *
-* Author: Fei Sun
+* Author: Fei Sun, Yijiang Huang
 *********************************************************************/
-//
-// Navigation function computation
-// Uses Dijkstra's method
-// Modified for Euclidean-distance computation
-//
-// Path calculation uses no interpolation when pot field is at max in
-//   nearby cells
-//
-// Path calc has sanity check that it succeeded
-//
 
 #include <ros/console.h>
 #include <move_incremental/move_incremental.h>
@@ -62,26 +52,6 @@ MoveIncremental::MoveIncremental(int xs, int ys)
 MoveIncremental::~MoveIncremental()
 {
 }
-
-/********************
- * D* Lite
- ********************
- */
-
-//
-// calculate navigation function, given a costmap, goal, and start
-//
-
-//
-// Use D* method for setting priorities
-// Critical function: calculate updated potential value of a cell,
-//   given its neighbors' values
-// Planar-wave update calculation from two lowest neighbors in a 4-grid
-// Quadratic approximation to the interpolated value
-// No checking of bounds here, this function should be fast
-//
-
-#define INVSQRT2 0.707106781
 
 /********************
  * D* Lite
