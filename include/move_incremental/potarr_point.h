@@ -42,19 +42,19 @@
 #include <pcl/register_point_struct.h>
 
 namespace move_incremental {
-    struct PotarrPoint {
-        float x;
-        float y;
-        float z;
-        float pot_value;
-    };
+struct PotarrPoint {
+  float x;
+  float y;
+  float z;
+  float pot_value;
+};
 }
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(
-        move_incremental::PotarrPoint,
-        (float, x, x)
-        (float, y, y)
-        (float, z, z)
-        (float, pot_value, pot_value));
+    move_incremental::PotarrPoint,
+(float, x, x)
+(float, y, y)
+(float, z, z)
+(float, pot_value, pot_value));
 
 #endif //PROJECT_POTARR_POINT_H
