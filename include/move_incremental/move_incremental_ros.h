@@ -32,7 +32,7 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *
-* Author: Yijiang Huang
+* Author: Yijiang Huang, Fei Sun
 *********************************************************************/
 #ifndef PROJECT_MOVE_INCREMENTAL_ROS_H
 #define PROJECT_MOVE_INCREMENTAL_ROS_H
@@ -53,6 +53,8 @@
 
 #include <move_incremental/move_incremental.h>
 #include <move_incremental/potarr_point.h>
+
+#define COST_POSSIBLY_CIRCUMSCRIBED 128
 
 namespace move_incremental
 {
@@ -119,13 +121,6 @@ namespace move_incremental
                       const geometry_msgs::PoseStamped& goal, double tolerance, std::vector<geometry_msgs::PoseStamped>& plan);
 
         /**
-         * @brief  Computes the full navigation function for the map given a point in the world to start from
-         * @param world_point The point to use for seeding the navigation function
-         * @return True if the navigation function was computed successfully, false otherwise
-         */
-        bool computePotential(const geometry_msgs::Point& world_point);
-
-        /**
          * @brief Compute a plan to a goal after the potential for a start point has already been computed (Note: You should call computePotential first)
          * @param goal The goal pose to create a plan to
          * @param plan The plan... filled by the planner
@@ -141,21 +136,6 @@ namespace move_incremental
         double getPointPotential(const geometry_msgs::Point& world_point);
 
         /**
-         * @brief Check for a valid potential value at a given point in the world (Note: You should call computePotential first)
-         * @param world_point The point to get the potential for
-         * @return True if the navigation function is valid at that point in the world, false otherwise
-         */
-        bool validPointPotential(const geometry_msgs::Point& world_point);
-
-        /**
-         * @brief Check for a valid potential value at a given point in the world (Note: You should call computePotential first)
-         * @param world_point The point to get the potential for
-         * @param tolerance The tolerance on searching around the world_point specified
-         * @return True if the navigation function is valid at that point in the world, false otherwise
-         */
-        bool validPointPotential(const geometry_msgs::Point& world_point, double tolerance);
-
-        /**
          * @brief  Publish a path for visualization purposes
          */
         void publishPlan(const std::vector<geometry_msgs::PoseStamped>& path, double r, double g, double b, double a);
@@ -163,6 +143,8 @@ namespace move_incremental
         ~MoveIncrementalROS(){}
 
         bool makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::GetPlan::Response& resp);
+
+        int plan(std::vector< geometry_msgs::PoseStamped > &grid_plan, geometry_msgs::PoseStamped& start, geometry_msgs::PoseStamped& goal);
 
     protected:
 

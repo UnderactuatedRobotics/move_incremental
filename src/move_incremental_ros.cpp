@@ -32,7 +32,7 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *
-* Author: Yijiang Huang
+* Author: Yijiang Huang, Fei Sun
 *********************************************************************/
 
 #include <tf/transform_listener.h>
@@ -66,6 +66,7 @@ namespace move_incremental {
         initialize(name, costmap, global_frame);
     }
 
+    // from the default navfn implementation, good as is
     void MoveIncrementalROS::initialize(std::string name, costmap_2d::Costmap2D *costmap, std::string global_frame) {
         if (!initialized_) {
             costmap_ = costmap;
@@ -105,38 +106,6 @@ namespace move_incremental {
         initialize(name, costmap_ros->getCostmap(), costmap_ros->getGlobalFrameID());
     }
 
-    bool MoveIncrementalROS::validPointPotential(const geometry_msgs::Point &world_point) {
-        return validPointPotential(world_point, default_tolerance_);
-    }
-
-    bool MoveIncrementalROS::validPointPotential(const geometry_msgs::Point &world_point, double tolerance) {
-        if (!initialized_) {
-            ROS_ERROR(
-                    "This planner has not been initialized yet, but it is being used, please call initialize() before use");
-            return false;
-        }
-
-        double resolution = costmap_->getResolution();
-        geometry_msgs::Point p;
-        p = world_point;
-
-        p.y = world_point.y - tolerance;
-
-        while (p.y <= world_point.y + tolerance) {
-            p.x = world_point.x - tolerance;
-            while (p.x <= world_point.x + tolerance) {
-                double potential = getPointPotential(p);
-                if (potential < POT_HIGH) {
-                    return true;
-                }
-                p.x += resolution;
-            }
-            p.y += resolution;
-        }
-
-        return false;
-    }
-
     double MoveIncrementalROS::getPointPotential(const geometry_msgs::Point &world_point) {
         if (!initialized_) {
             ROS_ERROR(
@@ -150,35 +119,6 @@ namespace move_incremental {
 
         unsigned int index = my * planner_->nx + mx;
         return planner_->potarr[index];
-    }
-
-    bool MoveIncrementalROS::computePotential(const geometry_msgs::Point &world_point) {
-        if (!initialized_) {
-            ROS_ERROR(
-                    "This planner has not been initialized yet, but it is being used, please call initialize() before use");
-            return false;
-        }
-
-        //make sure to resize the underlying array that MoveIncremental uses
-        planner_->setNavArr(costmap_->getSizeInCellsX(), costmap_->getSizeInCellsY());
-        planner_->setCostmap(costmap_->getCharMap(), true, allow_unknown_);
-
-        unsigned int mx, my;
-        if (!costmap_->worldToMap(world_point.x, world_point.y, mx, my))
-            return false;
-
-        int map_start[2];
-        map_start[0] = 0;
-        map_start[1] = 0;
-
-        int map_goal[2];
-        map_goal[0] = mx;
-        map_goal[1] = my;
-
-        planner_->setStart(map_start);
-        planner_->setGoal(map_goal);
-
-        return planner_->calcMoveIncrementalDijkstra();
     }
 
     void
@@ -258,27 +198,9 @@ namespace move_incremental {
         tf::poseStampedMsgToTF(start, start_pose);
         clearRobotCell(start_pose, mx, my);
 
-#if 0
-        {
-      static int n = 0;
-      static char filename[1000];
-      snprintf( filename, 1000, "MoveIncrementalros-makeplan-costmapB-%04d.pgm", n++ );
-      costmap->saveRawMap( std::string( filename ));
-    }
-#endif
-
         //make sure to resize the underlying array that MoveIncremental uses
         planner_->setNavArr(costmap_->getSizeInCellsX(), costmap_->getSizeInCellsY());
         planner_->setCostmap(costmap_->getCharMap(), true, allow_unknown_);
-
-#if 0
-        {
-      static int n = 0;
-      static char filename[1000];
-      snprintf( filename, 1000, "MoveIncrementalros-makeplan-costmapC-%04d", n++ );
-      planner_->savemap( filename );
-    }
-#endif
 
         int map_start[2];
         map_start[0] = mx;
@@ -304,74 +226,92 @@ namespace move_incremental {
         planner_->setStart(map_goal);
         planner_->setGoal(map_start);
 
-        //bool success = planner_->calcMoveIncrementalAstar();
-        planner_->calcMoveIncrementalDijkstra(true);
+        // D* Lite, initialize start and goal
+        planner_->init(map_start[0], map_start[1], map_goal[0], map_goal[1]); 
 
-        double resolution = costmap_->getResolution();
-        geometry_msgs::PoseStamped p, best_pose;
-        p = goal;
+        geometry_msgs::PoseStamped s = start;
+        geometry_msgs::PoseStamped g = goal;
 
-        bool found_legal = false;
-        double best_sdist = DBL_MAX;
+        std::vector< geometry_msgs::PoseStamped > grid_plan;
+        ROS_DEBUG("Start To plan");
+        if(this->plan(grid_plan, s, g)){
 
-        p.pose.position.y = goal.pose.position.y - tolerance;
 
-        while (p.pose.position.y <= goal.pose.position.y + tolerance) {
-            p.pose.position.x = goal.pose.position.x - tolerance;
-            while (p.pose.position.x <= goal.pose.position.x + tolerance) {
-                double potential = getPointPotential(p.pose.position);
-                double sdist = sq_distance(p, goal);
-                if (potential < POT_HIGH && sdist < best_sdist) {
-                    best_sdist = sdist;
-                    best_pose = p;
-                    found_legal = true;
-                }
-                p.pose.position.x += resolution;
+            plan.clear();
+            //cnt_no_plan_= 0;
+            //cnt_make_plan_++ ;
+
+            for (size_t i = 0; i < grid_plan.size(); i++) {
+
+                geometry_msgs::PoseStamped posei;
+                //posei.header.seq = cnt_make_plan_;
+                posei.header.stamp = ros::Time::now();
+                posei.header.frame_id = global_frame_; /// Check in which frame to publish
+                posei.pose.position.x = grid_plan[i].pose.position.x;
+                posei.pose.position.y = grid_plan[i].pose.position.y;
+                posei.pose.position.z = 0.0;
+                posei.pose.orientation.x = 0.0;
+                posei.pose.orientation.y = 0.0;
+                posei.pose.orientation.z = 0.0;
+                posei.pose.orientation.w = 1.0;
+                plan.push_back(posei);
             }
-            p.pose.position.y += resolution;
+           
+            ROS_DEBUG("SRL_DSTAR_LITE Path found");
+            return true;
+
+        }
+        else
+        {
+            //cnt_no_plan_++;
+            ROS_WARN("NO PATH FOUND FROM THE D* Lite PLANNER");
+            return false;
         }
 
-        if (found_legal) {
-            //extract the plan
-            if (getPlanFromPotential(best_pose, plan)) {
-                //make sure the goal we push on has the same timestamp as the rest of the plan
-                geometry_msgs::PoseStamped goal_copy = best_pose;
-                goal_copy.header.stamp = ros::Time::now();
-                plan.push_back(goal_copy);
-            } else {
-                ROS_ERROR(
-                        "Failed to get a plan from potential when a legal potential was found. This shouldn't happen.");
-            }
-        }
+// comment out the rest to see if things still execute:
 
-        if (visualize_potential_) {
-            //publish potential array
-            pcl::PointCloud <PotarrPoint> pot_area;
-            pot_area.header.frame_id = global_frame_;
-            pot_area.points.clear();
-            std_msgs::Header header;
-            pcl_conversions::fromPCL(pot_area.header, header);
-            header.stamp = ros::Time::now();
-            pot_area.header = pcl_conversions::toPCL(header);
+        // bool success = planner_->calcMoveIncrementalDstar();
+        // //planner_->calcMoveIncrementalDijkstra(true);
 
-            PotarrPoint pt;
-            float *pp = planner_->potarr;
-            double pot_x, pot_y;
-            for (unsigned int i = 0; i < (unsigned int) planner_->ny * planner_->nx; i++) {
-                if (pp[i] < 10e7) {
-                    mapToWorld(i % planner_->nx, i / planner_->nx, pot_x, pot_y);
-                    pt.x = pot_x;
-                    pt.y = pot_y;
-                    pt.z = pp[i] / pp[planner_->start[1] * planner_->nx + planner_->start[0]] * 20;
-                    pt.pot_value = pp[i];
-                    pot_area.push_back(pt);
-                }
-            }
-            potarr_pub_.publish(pot_area);
-        }
+        // double resolution = costmap_->getResolution();
+        // geometry_msgs::PoseStamped p, best_pose;
+        // p = goal;
 
-        //publish the plan for visualization purposes
-        publishPlan(plan, 0.0, 1.0, 0.0, 0.0);
+        // bool found_legal = false;
+        // double best_sdist = DBL_MAX;
+
+        // p.pose.position.y = goal.pose.position.y - tolerance;
+
+        // while (p.pose.position.y <= goal.pose.position.y + tolerance) {
+        //     p.pose.position.x = goal.pose.position.x - tolerance;
+        //     while (p.pose.position.x <= goal.pose.position.x + tolerance) {
+        //         double potential = getPointPotential(p.pose.position);
+        //         double sdist = sq_distance(p, goal);
+        //         if (potential < POT_HIGH && sdist < best_sdist) {
+        //             best_sdist = sdist;
+        //             best_pose = p;
+        //             found_legal = true;
+        //         }
+        //         p.pose.position.x += resolution;
+        //     }
+        //     p.pose.position.y += resolution;
+        // }
+
+        // if (found_legal) {
+        //     //extract the plan
+        //     if (getPlanFromPotential(best_pose, plan)) {
+        //         //make sure the goal we push on has the same timestamp as the rest of the plan
+        //         geometry_msgs::PoseStamped goal_copy = best_pose;
+        //         goal_copy.header.stamp = ros::Time::now();
+        //         plan.push_back(goal_copy);
+        //     } else {
+        //         ROS_ERROR(
+        //                 "Failed to get a plan from potential when a legal potential was found. This shouldn't happen.");
+        //     }
+        // }
+
+        // //publish the plan for visualization purposes
+        // publishPlan(plan, 0.0, 1.0, 0.0, 0.0);
 
         ROS_INFO("[MoveIncremental] Good job guys! Plan published!");
 
@@ -470,4 +410,116 @@ namespace move_incremental {
         publishPlan(plan, 0.0, 1.0, 0.0, 0.0);
         return !plan.empty();
     }
+
+    /*
+     * D* Lite
+     */
+        /// ==================================================================================
+    /// plan(std::vector< geometry_msgs::PoseStamped > &grid_plan, geometry_msgs::PoseStamped& start)
+    /// method to solve a planning probleme.
+    /// ==================================================================================
+    int MoveIncrementalROS::plan(std::vector< geometry_msgs::PoseStamped > &grid_plan, 
+                                    geometry_msgs::PoseStamped& start, geometry_msgs::PoseStamped& goal){
+        /// TODO plan using the D* Lite Object
+
+        /// 0. Setting Start and Goal points
+        /// start
+        unsigned int start_mx;
+        unsigned int start_my;
+        double start_x = start.pose.position.x;
+        double start_y = start.pose.position.y;
+        costmap_->worldToMap( start_x, start_y, start_mx, start_my);
+        ROS_DEBUG("Update Start Point %f %f to %d %d", start_x, start_y, start_mx, start_my);
+        planner_->updateStart(start_mx, start_my);
+        /// goal
+        unsigned int goal_mx;
+        unsigned int goal_my;
+        double goal_x = goal.pose.position.x;
+        double goal_y = goal.pose.position.y;
+        costmap_->worldToMap(goal_x, goal_y, goal_mx, goal_my);
+        ROS_DEBUG("Update Goal Point %f %f to %d %d", goal_x, goal_y, goal_mx, goal_my);
+        planner_->updateGoal(goal_mx, goal_my);
+
+        /// 1.Update Planner costs
+        int nx_cells, ny_cells;
+        nx_cells = costmap_->getSizeInCellsX();
+        ny_cells = costmap_->getSizeInCellsY();
+        ROS_DEBUG("Update cell costs");
+
+        unsigned char* grid = costmap_->getCharMap();
+        for(int x=0; x<(int)costmap_->getSizeInCellsX(); x++){
+            for(int y=0; y<(int)costmap_->getSizeInCellsY(); y++){
+                int index = costmap_->getIndex(x,y);
+                 
+                double c = (double)grid[index];
+
+                if( c >= COST_POSSIBLY_CIRCUMSCRIBED)
+                    planner_->updateCell(x, y, -1);
+                else if (c == costmap_2d::FREE_SPACE){
+                    planner_->updateCell(x, y, 1);
+                }else
+                {
+                    planner_->updateCell(x, y, c);
+                }
+            }
+        }
+
+        ROS_DEBUG("Replan");
+        /// 2. Plannig using D* Lite
+        planner_->replan();
+
+        ROS_DEBUG("Get Path");
+        /// 3. Get Path
+        list<state> path_to_shortcut = planner_->getPath();
+        
+        list<state> path;
+        
+        // no shortcut
+        path = path_to_shortcut;
+
+        /// 4. Returning the path generated
+        grid_plan.clear();
+        grid_plan.push_back(start);
+
+        // no smoothing
+
+        double costmap_resolution = costmap_->getResolution();
+        double origin_costmap_x = costmap_->getOriginX();
+        double origin_costmap_y = costmap_->getOriginY();
+
+        std::list<state>::const_iterator iterator;
+
+        for (iterator = path.begin(); iterator != path.end(); ++iterator) {
+
+            state node = *iterator;
+
+            geometry_msgs::PoseStamped next_node;
+            //next_node.header.seq = cnt_make_plan_;
+            next_node.header.stamp = ros::Time::now();
+            next_node.header.frame_id = global_frame_;
+            next_node.pose.position.x = (node.x+0.5)*costmap_resolution + origin_costmap_x;
+            next_node.pose.position.y = (node.y+0.5)*costmap_resolution + origin_costmap_y;
+            next_node.pose.position.z = 0.0;
+            next_node.pose.orientation.x = 0.0;
+            next_node.pose.orientation.y = 0.0;
+            next_node.pose.orientation.z = 0.0;
+            next_node.pose.orientation.w = 1.0;
+
+            grid_plan.push_back(next_node);
+        }
+
+
+        if(path.size()>0){
+
+            //publishPath(grid_plan);
+            publishPlan(grid_plan, 0.0, 1.0, 0.0, 0.0);
+
+            return true;
+        }
+        else
+            return false;
+
+    }
+
+
 };// namspace move_incremental
