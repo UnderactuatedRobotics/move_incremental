@@ -1,0 +1,24 @@
+<robot name="short_wall">
+    <link name="my_short_wall">
+        <inertial>
+            <origin xyz="0 0 0" />
+            <mass value="500.0" />
+            <inertia ixx="50.0" ixy="0.0" ixz="0.0" iyy="50.0" iyz="0.0" izz="50.0" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0.25" />
+            <geometry>
+                <box size="3 0.3 0.5" />
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0.25" />
+            <geometry>
+                <box size="3 0.3 0.5" />
+            </geometry>
+        </collision>
+    </link>
+    <gazebo reference="my_short_wall">
+        <material>Gazebo/Yellow</material>
+    </gazebo>
+</robot>

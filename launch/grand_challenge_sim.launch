@@ -29,6 +29,9 @@
         <node name="spawn_walls_4" pkg="gazebo_ros" type="spawn_model"
               args="-file $(find cogrob)/data/long_wall.urdf -urdf -x -5.2 -z 0.1 -Y 1.5707 -model wall_4"
               respawn="false" />
+        <node name="spawn_walls_5" pkg="gazebo_ros" type="spawn_model"
+              args="-file $(find move_incremental)/data/short_wall.urdf -urdf -x -1.5 -y -0.5 -z 0.1 -Y 1.5707 -model wall_5"
+              respawn="false" />
 
         <!-- locations  -->
         <rosparam command="load" file="$(arg location_file)" />
@@ -39,7 +42,7 @@
 
         <!-- Load up the truth map -->
         <node name="truth_map_server" pkg="map_server" type="map_server"
-              args="$(find cogrob)/data/sim-grid.yaml" />
+              args="$(find move_incremental)/data/sim-grid.yaml" />
 
         <!-- State estimation -->
         <group>
