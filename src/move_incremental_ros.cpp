@@ -72,26 +72,28 @@ MoveIncrementalROS::MoveIncrementalROS(std::string name, costmap_2d::Costmap2D *
   initialize(name, costmap, global_frame);
 }
 
-//! from the default navfn implementation, good as is
 void MoveIncrementalROS::initialize(std::string name, costmap_2d::Costmap2D *costmap, std::string global_frame)
 {
   if (!initialized_)
   {
-    costmap_ = costmap;
-    global_frame_ = global_frame;
-    planner_ = boost::shared_ptr<MoveIncremental>(
-        new MoveIncremental(costmap_->getSizeInCellsX(), costmap_->getSizeInCellsY()));
-
     ros::NodeHandle private_nh("~/" + name);
 
-    plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
-
-    private_nh.param("visualize_potential", visualize_potential_, false);
-
-    //if we're going to visualize the potential array we need to advertise
-    if (visualize_potential_)
+    try
     {
-      potarr_pub_.advertise(private_nh, "potential", 1);
+      costmap_ = costmap;
+
+      global_frame_ = global_frame;
+
+      planner_ = boost::shared_ptr<MoveIncremental>(
+          new MoveIncremental(costmap_->getSizeInCellsX(), costmap_->getSizeInCellsY()));
+
+      planner_->init(0, 0, 10, 10); //First initialization
+
+    }
+    catch (exception &e)
+    {
+      ROS_ERROR("An exception occurred. Exception Nr. %s", e.what());
+
     }
 
     private_nh.param("allow_unknown", allow_unknown_, true);
@@ -103,15 +105,26 @@ void MoveIncrementalROS::initialize(std::string name, costmap_2d::Costmap2D *cos
     ros::NodeHandle prefix_nh;
     tf_prefix_ = tf::getPrefixParam(prefix_nh);
 
+    ROS_INFO("[MoveIncremental] Parameters input finished");
+
+    // setup publishers
+    plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
     make_plan_srv_ = private_nh.advertiseService("make_plan", &MoveIncrementalROS::makePlanService, this);
+    private_nh.param("visualize_potential", visualize_potential_, false);
+
+    //if we're going to visualize the potential array we need to advertise
+    if (visualize_potential_)
+    {
+      potarr_pub_.advertise(private_nh, "potential", 1);
+    }
+
+    ROS_INFO("[MoveIncremental] msgs & service published");
 
     initialized_ = true;
-
-    ROS_INFO("[MoveIncremental] Hey we are here!! Incremental Path Planning!");
   }
   else
   {
-    ROS_WARN("[MoveIncremental] This planner has already been initialized, you can't call it twice, doing nothing");
+    ROS_WARN("[MoveIncremental] MoveIncremental Planner not intialized. Need reboot to try again.");
   }
 }
 
@@ -232,8 +245,8 @@ bool MoveIncrementalROS::makePlan(const geometry_msgs::PoseStamped &start,
   map_goal[1] = my;
 
   // TODO: shouldn't init (clean up & erase) everytime! This is anti-incremental.
-  // D* Lite, initialize start and goal
-  planner_->init(map_start[0], map_start[1], map_goal[0], map_goal[1]);
+//  // D* Lite, initialize start and goal
+//  planner_->init(map_start[0], map_start[1], map_goal[0], map_goal[1]);
 
   geometry_msgs::PoseStamped s = start;
   geometry_msgs::PoseStamped g = goal;
@@ -241,7 +254,7 @@ bool MoveIncrementalROS::makePlan(const geometry_msgs::PoseStamped &start,
   std::vector <geometry_msgs::PoseStamped> grid_plan;
   ROS_INFO("[MoveIncremental] Start To plan");
 
-  // main plan call
+  // main plan call, first plan
   if (this->plan(grid_plan, s, g))
   {
     plan.clear();

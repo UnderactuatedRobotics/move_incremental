@@ -626,6 +626,7 @@ void MoveIncremental::updateGoal(int x, int y)
 
   for (i = cellHash.begin(); i != cellHash.end(); i++)
   {
+    // scan through cellHash to mark all unseen objects as backup
     if (!close(i->second.cost, C1))
     {
       tp.first.x = i->first.x;
@@ -638,6 +639,7 @@ void MoveIncremental::updateGoal(int x, int y)
   cellHash.clear();
   openHash.clear();
 
+  // clean up openList (Priority Queue)
   while (!openList.empty())
   {
     openList.pop();
@@ -652,8 +654,10 @@ void MoveIncremental::updateGoal(int x, int y)
   tmp.g = tmp.rhs = 0;
   tmp.cost = C1;
 
+  // initialize s_goal's info,
   cellHash[s_goal] = tmp;
 
+  // initialize s_start's info
   tmp.g = tmp.rhs = heuristic(s_start, s_goal);
   tmp.cost = C1;
   cellHash[s_start] = tmp;
