@@ -51,6 +51,7 @@ namespace move_incremental
 {
 using namespace std;
 using namespace __gnu_cxx;
+
 /*
 *
 */
@@ -107,6 +108,7 @@ struct cellInfo
   double cost;
 };
 
+// hasher function
 class state_hash
 {
  public:
@@ -116,8 +118,13 @@ class state_hash
   }
 };
 
-typedef priority_queue < state, vector<state>, greater<state> >   ds_pq;
+//! ds_pq: Priority Queue U in D* Lite, smallest element will appear at the top (OpenList)
+typedef std::priority_queue < state, std::vector<state>, std::greater<state> >   ds_pq;
+
+//! ds_ch: cell Hash in D* Lite
 typedef hash_map < state, cellInfo, state_hash, equal_to<state> > ds_ch;
+
+//! ds_oh: Open Hash in D* Lite
 typedef hash_map < state, float, state_hash, equal_to<state> >    ds_oh;
 
 /**
@@ -188,6 +195,10 @@ class MoveIncremental
   int maxSteps;
 
   move_incremental::ds_pq openList;
+
+  /*!
+   * @brief a state-cost hash table
+   */
   move_incremental::ds_ch cellHash;
   move_incremental::ds_oh openHash;
 };

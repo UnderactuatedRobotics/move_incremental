@@ -244,10 +244,10 @@ double MoveIncremental::eightCondist(state a, state b)
  */
 int MoveIncremental::computeShortestPath()
 {
-
   list <state> s;
   list<state>::iterator i;
 
+  // in the first run, s_start is in
   if (openList.empty()) { return 1; }
 
   int k = 0;
@@ -335,14 +335,18 @@ void MoveIncremental::updateVertex(state u)
   if (u != s_goal)
   {
     getSucc(u, s);
+
+    // rhs(u) = min_{s' \in succ(u)} {c(u, s') + g(s')}
     double tmp = INFINITY;
     double tmp2;
-
     for (i = s.begin(); i != s.end(); i++)
     {
       tmp2 = getG(*i) + cost(u, *i);
       if (tmp2 < tmp) { tmp = tmp2; }
-    }
+    }// rhs compute end
+
+    // TODO: Check - there should be if(u \in PriorityQueue U) { U.remove(u) }
+
     if (!close(getRHS(u), tmp)) { setRHS(u, tmp); }
   }
 
@@ -479,6 +483,7 @@ void MoveIncremental::getSucc(state u, list <state> &s)
 
   if (occupied(u)) { return; }
 
+  // all neighbors in 8-way 2D-grid
   u.x += 1;
   s.push_front(u);
   u.y += 1;
@@ -613,11 +618,12 @@ void MoveIncremental::updateStart(int x, int y)
 void MoveIncremental::updateGoal(int x, int y)
 {
 
-  list<pair<ipoint2, double> > toAdd;
+  list <pair<ipoint2, double>> toAdd;
   pair<ipoint2, double> tp;
 
   ds_ch::iterator i;
-  list<pair<ipoint2, double> >::iterator kk;
+  list < pair < ipoint2, double > > ::iterator
+  kk;
 
   for (i = cellHash.begin(); i != cellHash.end(); i++)
   {
@@ -678,12 +684,14 @@ bool MoveIncremental::replan()
   path.clear();
 
   int res = computeShortestPath();
-  //printf("res: %d ols: %d ohs: %d tk: [%f %f] sk: [%f %f] sgr: (%f,%f)\n",
-  // res,openList.size(),openHash.size(),openList.top().k.first,openList.top().k.second, s_start.k.first, s_start.k.second,getRHS(s_start),getG(s_start));
+  ROS_INFO("[MoveIncremental - replan] res: %d ols: %d ohs: %d tk: [%f %f] sk: [%f %f] sgr: (%f,%f)\n",
+           res, openList.size(), openHash.size(), openList.top().k.first,
+           openList.top().k.second, s_start.k.first, s_start.k.second,
+           getRHS(s_start), getG(s_start));
 
   if (res < 0)
   {
-    ROS_WARN("NO PATH TO GOAL");
+    ROS_WARN("[MoveIncremental - replan] NO PATH TO GOAL");
     return false;
   }
   list <state> n;
@@ -693,26 +701,27 @@ bool MoveIncremental::replan()
 
   if (std::isinf(getG(s_start)))
   {
-    fprintf(stderr, "NO PATH TO GOAL\n");
+    fprintf(stderr, "[MoveIncremental - replan] NO PATH TO GOAL\n");
     return false;
   }
 
   while (cur != s_goal)
   {
-
     path.push_back(cur);
+
     getSucc(cur, n);
 
     if (n.empty())
     {
-      fprintf(stderr, "NO PATH TO GOAL\n");
+      fprintf(stderr, "[MoveIncremental - replan] NO PATH TO GOAL\n");
       return false;
     }
 
+    // set current vertex (cur) = argmin_{s' \in succ(cur)} {cost(cur, s') + g(s')}
+    // trace back on shortest path
     double cmin = INFINITY;
     double tmin;
     state smin;
-
     for (i = n.begin(); i != n.end(); i++)
     {
 
@@ -736,10 +745,12 @@ bool MoveIncremental::replan()
         cmin = val;
         smin = *i;
       }
-    }
+    } // end track back on shortest path
+
     n.clear();
     cur = smin;
-  }
+  } // end tracing back on shortest path to s_goal
+
   path.push_back(s_goal);
   return true;
 }

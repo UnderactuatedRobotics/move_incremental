@@ -231,6 +231,7 @@ bool MoveIncrementalROS::makePlan(const geometry_msgs::PoseStamped &start,
   map_goal[0] = mx;
   map_goal[1] = my;
 
+  // TODO: shouldn't init (clean up & erase) everytime! This is anti-incremental.
   // D* Lite, initialize start and goal
   planner_->init(map_start[0], map_start[1], map_goal[0], map_goal[1]);
 
@@ -261,6 +262,10 @@ bool MoveIncrementalROS::makePlan(const geometry_msgs::PoseStamped &start,
       posei.pose.orientation.y = 0.0;
       posei.pose.orientation.z = 0.0;
       posei.pose.orientation.w = 1.0;
+
+      // we are not using orientation computed from planner now
+      // posei.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, grid_plan[i].pose.position.z);
+
       plan.push_back(posei);
     }
 
@@ -305,13 +310,6 @@ MoveIncrementalROS::publishPlan(const std::vector <geometry_msgs::PoseStamped> &
   plan_pub_.publish(gui_path);
 }
 
-/*
- * D* Lite
- */
-/// ==================================================================================
-/// plan(std::vector< geometry_msgs::PoseStamped > &grid_plan, geometry_msgs::PoseStamped& start)
-/// method to solve a planning probleme.
-/// ==================================================================================
 int MoveIncrementalROS::plan(std::vector <geometry_msgs::PoseStamped> &grid_plan,
                              geometry_msgs::PoseStamped &start, geometry_msgs::PoseStamped &goal)
 {
