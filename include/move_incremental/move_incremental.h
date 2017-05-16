@@ -47,14 +47,12 @@
 #include <list>
 #include <ext/hash_map>
 
-using namespace std;
-using namespace __gnu_cxx;
-
 namespace move_incremental
 {
-
+using namespace std;
+using namespace __gnu_cxx;
 /*
-* D* Lite Addition Data structure
+*
 */
 class state
 {
@@ -118,9 +116,9 @@ class state_hash
   }
 };
 
-typedef priority_queue < state, vector<state>, greater<state> > ds_pq;
+typedef priority_queue < state, vector<state>, greater<state> >   ds_pq;
 typedef hash_map < state, cellInfo, state_hash, equal_to<state> > ds_ch;
-typedef hash_map < state, float, state_hash, equal_to<state> > ds_oh;
+typedef hash_map < state, float, state_hash, equal_to<state> >    ds_oh;
 
 /**
  * @class MoveIncremental
@@ -177,16 +175,21 @@ class MoveIncremental
   float   keyHashCode(state u);
 
  private:
-  list <state> path;
+  list <move_incremental::state> path;
 
+  //! cost of an unseen cell
   double C1;
+
   double k_m;
-  state s_start, s_goal, s_last;
+
+  move_incremental::state s_start, s_goal, s_last;
+
+  //! maximum number of nodes expanded before giving up
   int maxSteps;
 
-  ds_pq openList;
-  ds_ch cellHash;
-  ds_oh openHash;
+  move_incremental::ds_pq openList;
+  move_incremental::ds_ch cellHash;
+  move_incremental::ds_oh openHash;
 };
 };// namspace move_incremental
 

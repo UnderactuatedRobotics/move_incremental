@@ -49,7 +49,7 @@
 
         <!-- Move base -->
         <remap from="/cmd_vel" to="/summit_xl/robot_control/cmd_vel" />
-        <node pkg="move_base" type="move_base" name="move_base">
+        <node pkg="move_base" type="move_base" name="move_base" output="screen">
 	    <!-- OUR PLANNER IS HEREEEEEEEEEEEEEEEEEEE!!! -->
 	    <param name="base_global_planner" value="move_incremental/MoveIncrementalROS"/>
 	    <!-- OUR PLANNER ENDDDDDDDDDDDDDDDDDDDDDDD!!! -->

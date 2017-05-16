@@ -111,7 +111,7 @@ void MoveIncrementalROS::initialize(std::string name, costmap_2d::Costmap2D *cos
   }
   else
   {
-    ROS_WARN("This planner has already been initialized, you can't call it twice, doing nothing");
+    ROS_WARN("[MoveIncremental] This planner has already been initialized, you can't call it twice, doing nothing");
   }
 }
 
@@ -125,7 +125,7 @@ void MoveIncrementalROS::clearRobotCell(const tf::Stamped <tf::Pose> &global_pos
   if (!initialized_)
   {
     ROS_ERROR(
-        "This planner has not been initialized yet, but it is being used, please call initialize() before use");
+        "[MoveIncremental] This planner has not been initialized yet, but it is being used, please call initialize() before use");
     return;
   }
 
@@ -166,7 +166,7 @@ bool MoveIncrementalROS::makePlan(const geometry_msgs::PoseStamped &start,
   if (!initialized_)
   {
     ROS_ERROR(
-        "This planner has not been initialized yet, but it is being used, please call initialize() before use");
+        "[MoveIncremental] This planner has not been initialized yet, but it is being used, please call initialize() before use");
     return false;
   }
 
@@ -199,7 +199,7 @@ bool MoveIncrementalROS::makePlan(const geometry_msgs::PoseStamped &start,
   if (!costmap_->worldToMap(wx, wy, mx, my))
   {
     ROS_WARN(
-        "The robot's start position is off the global costmap. Planning will always fail, are you sure the robot has been properly localized?");
+        "[MoveIncremental] The robot's start position is off the global costmap. Planning will always fail, are you sure the robot has been properly localized?");
     return false;
   }
 
@@ -220,7 +220,7 @@ bool MoveIncrementalROS::makePlan(const geometry_msgs::PoseStamped &start,
     if (tolerance <= 0.0)
     {
       ROS_WARN_THROTTLE(1.0,
-                        "The goal sent to the MoveIncremental planner is off the global costmap. Planning will always fail to this goal.");
+                        "[MoveIncremental] The goal sent to the MoveIncremental planner is off the global costmap. Planning will always fail to this goal.");
       return false;
     }
     mx = 0;
@@ -238,7 +238,7 @@ bool MoveIncrementalROS::makePlan(const geometry_msgs::PoseStamped &start,
   geometry_msgs::PoseStamped g = goal;
 
   std::vector <geometry_msgs::PoseStamped> grid_plan;
-  ROS_DEBUG("Start To plan");
+  ROS_INFO("[MoveIncremental] Start To plan");
 
   // main plan call
   if (this->plan(grid_plan, s, g))
@@ -264,13 +264,13 @@ bool MoveIncrementalROS::makePlan(const geometry_msgs::PoseStamped &start,
       plan.push_back(posei);
     }
 
-    ROS_DEBUG("SRL_DSTAR_LITE Path found");
+    ROS_INFO("[MoveIncremental] SRL_DSTAR_LITE Path found");
     return true;
   }
   else
   {
     //cnt_no_plan_++;
-    ROS_WARN("NO PATH FOUND FROM THE D* Lite PLANNER");
+    ROS_WARN("[MoveIncremental] NO PATH FOUND FROM THE D* Lite PLANNER");
     return false;
   }
 }
@@ -282,7 +282,7 @@ MoveIncrementalROS::publishPlan(const std::vector <geometry_msgs::PoseStamped> &
   if (!initialized_)
   {
     ROS_ERROR(
-        "This planner has not been initialized yet, but it is being used, please call initialize() before use");
+        "[MoveIncremental] This planner has not been initialized yet, but it is being used, please call initialize() before use");
     return;
   }
 
@@ -324,7 +324,7 @@ int MoveIncrementalROS::plan(std::vector <geometry_msgs::PoseStamped> &grid_plan
   double start_x = start.pose.position.x;
   double start_y = start.pose.position.y;
   costmap_->worldToMap(start_x, start_y, start_mx, start_my);
-  ROS_DEBUG("Update Start Point %f %f to %d %d", start_x, start_y, start_mx, start_my);
+  ROS_INFO("[MoveIncremental] Update Start Point %f %f to %d %d", start_x, start_y, start_mx, start_my);
   planner_->updateStart(start_mx, start_my);
 
   /// goal
@@ -333,7 +333,7 @@ int MoveIncrementalROS::plan(std::vector <geometry_msgs::PoseStamped> &grid_plan
   double goal_x = goal.pose.position.x;
   double goal_y = goal.pose.position.y;
   costmap_->worldToMap(goal_x, goal_y, goal_mx, goal_my);
-  ROS_DEBUG("Update Goal Point %f %f to %d %d", goal_x, goal_y, goal_mx, goal_my);
+  ROS_INFO("[MoveIncremental] Update Goal Point %f %f to %d %d", goal_x, goal_y, goal_mx, goal_my);
   planner_->updateGoal(goal_mx, goal_my);
 
   /// 1.Update Planner costs
@@ -341,7 +341,7 @@ int MoveIncrementalROS::plan(std::vector <geometry_msgs::PoseStamped> &grid_plan
   int nx_cells, ny_cells;
   nx_cells = costmap_->getSizeInCellsX();
   ny_cells = costmap_->getSizeInCellsY();
-  ROS_DEBUG("Update cell costs");
+  ROS_INFO("[MoveIncremental] Update cell costs");
 
   unsigned char *grid = costmap_->getCharMap();
   for (int x = 0; x < (int) costmap_->getSizeInCellsX(); x++)
@@ -370,11 +370,11 @@ int MoveIncrementalROS::plan(std::vector <geometry_msgs::PoseStamped> &grid_plan
     }
   }
 
-  ROS_DEBUG("Replan");
+  ROS_INFO("[MoveIncremental] Replan");
   /// 2. Plannig using D* Lite
   planner_->replan();
 
-  ROS_DEBUG("Get Path");
+  ROS_INFO("[MoveIncremental] Get Path");
   /// 3. Get Path
   list <state> path_to_shortcut = planner_->getPath();
 

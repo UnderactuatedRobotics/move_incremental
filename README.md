@@ -2,18 +2,6 @@
 ROS move_base plugin that implements the D* Lite algorithm, for MIT 16.412 Cognitive Robotics Grand Challenge.
 For more details about D* Lite, please check [[S. Koenig et al.- **D* Lite** -*aaai2002*]](http://idm-lab.org/bib/abstracts/papers/aaai02b.pdf)
 
-### Developer Note
-
-We are using [Vincent Driessen's branching model](http://nvie.com/posts/a-successful-git-branching-model/) for git development workflow.
-
-In a nutshell, **develop** branch is where several members' branches merge together. Individual developer should branch off, create feature/_your_feature_ branch, develop and then finish by merging it back to develop branch.  
- 
-[git-flow library of git subcommands](http://jeffkreeftmeijer.com/2010/why-arent-you-using-git-flow/) makes this just as easy as your daily git commands.
-
-Installation of git-flow on Linuxes can be found [here](https://github.com/nvie/gitflow/wiki/Linux).
-
-It's okay that you don't want to use git-flow: just manually create your feature branch and work, don't directly work on development branch. Just don't forget to turn off fast-forward to preserve your feature branch history by typing: `git merge --no-ff develop`.
-
 ### Compile Guide
 
 First create your local catkin workspace, please follow [this tutorial](http://wiki.ros.org/catkin/Tutorials/create_a_workspace)
@@ -48,3 +36,23 @@ then Gazebo simulator will come out with summit-x in a predefined map.
 To drive it around, open another terminal and type:
 
 `rosrun cogrob achieve-sim-goals`
+
+### Debug Info
+
+In the terminal that you roslaunch grand_challenge_sim, you can identify
+D* Lite planner related output info with `[MoveIncremental]` prefix:
+
+`[ INFO] [1494894732.582441485, 16.108000000]: [MoveIncremental] Start To plan`
+
+
+### Developers Note
+
+We are using [Vincent Driessen's branching model](http://nvie.com/posts/a-successful-git-branching-model/) for git development workflow.
+
+In a nutshell, **develop** branch is where several members' branches merge together. Individual developer should branch off, create feature/_your_feature_ branch, develop and then finish by merging it back to develop branch.  
+ 
+[git-flow library of git subcommands](http://jeffkreeftmeijer.com/2010/why-arent-you-using-git-flow/) makes this just as easy as your daily git commands.
+
+Installation of git-flow on Linuxes can be found [here](https://github.com/nvie/gitflow/wiki/Linux).
+
+It's okay that you don't want to use git-flow: just manually create your feature branch and work, don't directly work on development branch. Just don't forget to turn off fast-forward to preserve your feature branch history by typing: `git merge --no-ff develop`.

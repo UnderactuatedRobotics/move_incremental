@@ -37,6 +37,12 @@
 #include <ros/console.h>
 #include <move_incremental/move_incremental.h>
 
+// GNU Predifined Constants
+// https://www.gnu.org/software/libc/manual/html_node/Mathematical-Constants.html
+// --------------------------
+// M_SQRT2: The Square of too.
+//
+
 namespace move_incremental
 {
 //
@@ -612,12 +618,11 @@ void MoveIncremental::updateStart(int x, int y)
 void MoveIncremental::updateGoal(int x, int y)
 {
 
-  list < pair<ipoint2, double> > toAdd;
+  list<pair<ipoint2, double> > toAdd;
   pair<ipoint2, double> tp;
 
   ds_ch::iterator i;
-  list < pair < ipoint2, double > > ::iterator
-  kk;
+  list<pair<ipoint2, double> >::iterator kk;
 
   for (i = cellHash.begin(); i != cellHash.end(); i++)
   {
