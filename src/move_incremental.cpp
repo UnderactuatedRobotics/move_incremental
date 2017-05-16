@@ -59,11 +59,6 @@ MoveIncremental::~MoveIncremental()
 {
 }
 
-/********************
- * D* Lite
- ********************
- */
-
 /* float Dstar::keyHashCode(state u) 
  * -------------------------- 
  * Returns the key hash code for the state u, this is used to compare
