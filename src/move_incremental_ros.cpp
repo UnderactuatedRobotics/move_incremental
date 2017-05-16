@@ -223,11 +223,11 @@ namespace move_incremental {
         map_goal[0] = mx;
         map_goal[1] = my;
 
-        planner_->setStart(map_goal);
-        planner_->setGoal(map_start);
+        //planner_->setStart(map_goal);
+        //planner_->setGoal(map_start);
 
         // D* Lite, initialize start and goal
-        planner_->init(map_start[0], map_start[1], map_goal[0], map_goal[1]); 
+        //planner_->init(map_start[0], map_start[1], map_goal[0], map_goal[1]); 
 
         geometry_msgs::PoseStamped s = start;
         geometry_msgs::PoseStamped g = goal;
@@ -447,22 +447,42 @@ namespace move_incremental {
         ROS_DEBUG("Update cell costs");
 
         unsigned char* grid = costmap_->getCharMap();
-        for(int x=0; x<(int)costmap_->getSizeInCellsX(); x++){
-            for(int y=0; y<(int)costmap_->getSizeInCellsY(); y++){
-                int index = costmap_->getIndex(x,y);
+        // for(int x=0; x<(int)costmap_->getSizeInCellsX(); x++){
+        //     for(int y=0; y<(int)costmap_->getSizeInCellsY(); y++){
+        //         int index = costmap_->getIndex(x,y);
                  
-                double c = (double)grid[index];
+        //         double c = (double)grid[index];
 
-                if( c >= COST_POSSIBLY_CIRCUMSCRIBED)
-                    planner_->updateCell(x, y, -1);
-                else if (c == costmap_2d::FREE_SPACE){
-                    planner_->updateCell(x, y, 1);
-                }else
-                {
-                    planner_->updateCell(x, y, c);
-                }
+        //         if( c >= COST_POSSIBLY_CIRCUMSCRIBED)
+        //             planner_->updateCell(x, y, -1);
+        //         else if (c == costmap_2d::FREE_SPACE){
+        //             planner_->updateCell(x, y, 1);
+        //         }else
+        //         {
+        //             planner_->updateCell(x, y, c);
+        //         }
+        //     }
+        // }
+        // iterate over cellHash
+        ds_ch plannerCellHash = planner_->getCellHash();
+        ds_ch::iterator i;
+          
+        for(i=plannerCellHash.begin(); i!=plannerCellHash.end(); i++) {
+            int x = i->first.x;
+            int y = i->first.y;
+            int index = costmap_->getIndex(x,y);
+            double c = (double)grid[index];
+
+            if( c >= COST_POSSIBLY_CIRCUMSCRIBED)
+                planner_->updateCell(x, y, -1);
+            else if (c == costmap_2d::FREE_SPACE){
+                planner_->updateCell(x, y, 1);
+            }else
+            {
+                planner_->updateCell(x, y, c);
             }
         }
+
 
         ROS_DEBUG("Replan");
         /// 2. Plannig using D* Lite

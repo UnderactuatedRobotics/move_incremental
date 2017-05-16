@@ -135,6 +135,7 @@ namespace move_incremental
         double g;
         double rhs;
         double cost;
+        bool cost_changed;
     };
 
     class state_hash {
@@ -346,6 +347,8 @@ namespace move_incremental
 
         list<state> getPath();
 
+        ds_ch getCellHash();
+
     private:
         list<state> path;
 
@@ -358,6 +361,7 @@ namespace move_incremental
         ds_ch cellHash;
         ds_oh openHash;
 
+        void   initialize();
         bool   close(double x, double y);
         void   makeNewCell(state u);
         double getG(state u);

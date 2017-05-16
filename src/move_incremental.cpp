@@ -1044,206 +1044,24 @@ namespace move_incremental
      ********************
      */
 
-    //
-    // calculate navigation function, given a costmap, goal, and start
-    //
-
     bool
     MoveIncremental::calcMoveIncrementalDstar()
     {
-        setupMoveIncremental(true);
 
-        // calculate the nav fn and path
-        propMoveIncrementalDstar(std::max(nx*ny/20,nx+ny));
-
-        // path
-        int len = calcPath(nx*4);
-
-        if (len > 0)            // found plan
-        {
-            ROS_INFO("[MoveIncremental] Path found, %d steps\n", len);
-            return true;
-        }
-        else
-        {
-            ROS_INFO("[MoveIncremental] No path found\n");
-            return false;
-        }
     }
-
-    //
-    // Use D* method for setting priorities
-    // Critical function: calculate updated potential value of a cell,
-    //   given its neighbors' values
-    // Planar-wave update calculation from two lowest neighbors in a 4-grid
-    // Quadratic approximation to the interpolated value
-    // No checking of bounds here, this function should be fast
-    //
 
 #define INVSQRT2 0.707106781
 
     inline void
     MoveIncremental::updateCellDstar(int n)
     {
-        // get neighbors
-        float u,d,l,r;
-        l = potarr[n-1];
-        r = potarr[n+1];
-        u = potarr[n-nx];
-        d = potarr[n+nx];
-        //ROS_INFO("[Update] c: %0.1f  l: %0.1f  r: %0.1f  u: %0.1f  d: %0.1f\n",
-        //   potarr[n], l, r, u, d);
-        // ROS_INFO("[Update] cost of %d: %d\n", n, costarr[n]);
-
-        // find lowest, and its lowest neighbor
-        float ta, tc;
-        if (l<r) tc=l; else tc=r;
-        if (u<d) ta=u; else ta=d;
-
-        // do planar wave update
-        if (costarr[n] < COST_OBS)  // don't propagate into obstacles
-        {
-            float hf = (float)costarr[n]; // traversability factor
-            float dc = tc-ta;       // relative cost between ta,tc
-            if (dc < 0)         // ta is lowest
-            {
-                dc = -dc;
-                ta = tc;
-            }
-
-            // calculate new potential
-            float pot;
-            if (dc >= hf)       // if too large, use ta-only update
-                pot = ta+hf;
-            else            // two-neighbor interpolation update
-            {
-                // use quadratic approximation
-                // might speed this up through table lookup, but still have to
-                //   do the divide
-                float d = dc/hf;
-                float v = -0.2301*d*d + 0.5307*d + 0.7040;
-                pot = ta + hf*v;
-            }
-
-            //ROS_INFO("[Update] new pot: %d\n", costarr[n]);
-
-            // now add affected neighbors to priority blocks
-            if (pot < potarr[n])
-            {
-                float le = INVSQRT2*(float)costarr[n-1];
-                float re = INVSQRT2*(float)costarr[n+1];
-                float ue = INVSQRT2*(float)costarr[n-nx];
-                float de = INVSQRT2*(float)costarr[n+nx];
-
-                // calculate distance
-                int x = n%nx;
-                int y = n/nx;
-                float dist = hypot(x-start[0], y-start[1])*(float)COST_NEUTRAL;
-
-                potarr[n] = pot;
-                pot += dist;
-                if (pot < curT) // low-cost buffer block
-                {
-                    if (l > pot+le) push_next(n-1);
-                    if (r > pot+re) push_next(n+1);
-                    if (u > pot+ue) push_next(n-nx);
-                    if (d > pot+de) push_next(n+nx);
-                }
-                else
-                {
-                    if (l > pot+le) push_over(n-1);
-                    if (r > pot+re) push_over(n+1);
-                    if (u > pot+ue) push_over(n-nx);
-                    if (d > pot+de) push_over(n+nx);
-                }
-            }
-
-        }
 
     }
-
-    //
-    // main propagation function
-    // D* method, best-first
-    // uses Euclidean distance heuristic
-    // runs for a specified number of cycles,
-    //   or until it runs out of cells to update,
-    //   or until the Start cell is found (atStart = true)
-    //
 
     bool
     MoveIncremental::propMoveIncrementalDstar(int cycles)
     {
-        int nwv = 0;            // max priority block size
-        int nc = 0;         // number of cells put into priority blocks
-        int cycle = 0;      // which cycle we're on
 
-        // set initial threshold, based on distance
-        float dist = hypot(goal[0]-start[0], goal[1]-start[1])*(float)COST_NEUTRAL;
-        curT = dist + curT;
-
-        // set up start cell
-        int startCell = start[1]*nx + start[0];
-
-        // do main cycle
-        for (; cycle < cycles; cycle++) // go for this many cycles, unless interrupted
-        {
-            //
-            if (curPe == 0 && nextPe == 0) // priority blocks empty
-                break;
-
-            // stats
-            nc += curPe;
-            if (curPe > nwv)
-                nwv = curPe;
-
-            // reset pending flags on current priority buffer
-            int *pb = curP;
-            int i = curPe;
-            while (i-- > 0)
-                pending[*(pb++)] = false;
-
-            // process current priority buffer
-            pb = curP;
-            i = curPe;
-            while (i-- > 0)
-                updateCellDstar(*pb++);
-
-            if (displayInt > 0 &&  (cycle % displayInt) == 0)
-                displayFn(this);
-
-            // swap priority blocks curP <=> nextP
-            curPe = nextPe;
-            nextPe = 0;
-            pb = curP;      // swap buffers
-            curP = nextP;
-            nextP = pb;
-
-            // see if we're done with this priority level
-            if (curPe == 0)
-            {
-                curT += priInc; // increment priority threshold
-                curPe = overPe; // set current to overflow block
-                overPe = 0;
-                pb = curP;      // swap buffers
-                curP = overP;
-                overP = pb;
-            }
-
-            // check if we've hit the Start cell
-            if (potarr[startCell] < POT_HIGH)
-                break;
-
-        }
-
-        last_path_cost_ = potarr[startCell];
-
-        ROS_INFO("[MoveIncremental] Used %d cycles, %d cells visited (%d%%), priority buf max %d\n",
-                  cycle,nc,(int)((nc*100.0)/(ns-nobs)),nwv);
-
-
-        if (potarr[startCell] < POT_HIGH) return true; // finished up here
-        else return false;
     }
 
     /********************
@@ -1282,6 +1100,14 @@ bool MoveIncremental::isValid(state u) {
  */
 list<state> MoveIncremental::getPath() {
   return path;
+}
+
+/* void Dstar::getPath() 
+ * --------------------------
+ * Returns the path created by replan()
+ */
+ds_ch MoveIncremental::getCellHash() {
+  return cellHash;
 }
 
 /* bool Dstar::occupied(state u)
@@ -1331,6 +1157,37 @@ void MoveIncremental::init(int sX, int sY, int gX, int gY) {
 
 }
 
+/* void Dstar::initialize()
+ * --------------------------
+ * Init dstar with start and goal coordinates, rest is as per
+ * [S. Koenig, 2002]
+ */
+void MoveIncremental::initialize() {
+  cellHash.clear();
+  cellHash.resize(160000);
+  path.clear();
+  // U = empty
+  openHash.clear();
+  while(!openList.empty()) openList.pop();
+
+  // k_m = 0
+  k_m = 0;
+  
+  // for all s in S, rhs(s)=g(s)=INFINITY
+  // do this in makeCell when push new cell to cellHash
+
+  // rhs(s_goal)=0
+  // U.Insert(s_goal, CalculateKey(s_goal))
+  cellInfo tmp;
+  tmp.g = INFINITY;
+  tmp.rhs =  0;
+  tmp.cost = C1;
+  tmp.cost_changed = false;
+
+  insert(calculateKey(s_goal));
+  cellHash[s_goal] = tmp;
+}
+
 
 /* void Dstar::makeNewCell(state u)
  * --------------------------
@@ -1341,10 +1198,12 @@ void MoveIncremental::makeNewCell(state u) {
   if (cellHash.find(u) != cellHash.end()) return;
 
   cellInfo tmp;
-  tmp.g       = tmp.rhs = heuristic(u,s_goal);
+  //tmp.g       = tmp.rhs = heuristic(u,s_goal);
+  tmp.g       = tmp.rhs = INFINITY;
   tmp.cost    = C1;
-  cellHash[u] = tmp;
-  
+  tmp.cost_changed = false;
+
+  cellHash[u] = tmp;  
 }
 
 /* double Dstar::getG(state u)
@@ -1354,7 +1213,8 @@ void MoveIncremental::makeNewCell(state u) {
 double MoveIncremental::getG(state u) {
 
   if (cellHash.find(u) == cellHash.end()) 
-    return heuristic(u,s_goal);
+    //return heuristic(u,s_goal);
+    return INFINITY;
   return cellHash[u].g;
   
 }
@@ -1368,7 +1228,8 @@ double MoveIncremental::getRHS(state u) {
   if (u == s_goal) return 0;  
 
   if (cellHash.find(u) == cellHash.end()) 
-    return heuristic(u,s_goal);
+    //return heuristic(u,s_goal);
+    return INFINITY;
   return cellHash[u].rhs;
   
 }
@@ -1379,7 +1240,7 @@ double MoveIncremental::getRHS(state u) {
  */
 void MoveIncremental::setG(state u, double g) {
   
-  makeNewCell(u);  
+  //makeNewCell(u);  
   cellHash[u].g = g; 
 }
 
@@ -1389,7 +1250,7 @@ void MoveIncremental::setG(state u, double g) {
  */
 double MoveIncremental::setRHS(state u, double rhs) {
   
-  makeNewCell(u);
+  //makeNewCell(u);
   cellHash[u].rhs = rhs;
 
 }
@@ -1419,6 +1280,20 @@ double MoveIncremental::eightCondist(state a, state b) {
  * 2. We lazily remove states from the open list so we never have to
  *    iterate through it.
  */
+// openList is the priority queue U
+
+// while(U.TopKey()<CalculateKey(s_start) OR rhs(s_start)!=g(s_start))
+//  k_old = U.TopKey()
+//  u = U.Pop()
+//  if(k_old<CalculateKey(u))
+//    U.Insert(u, CalculateKey(u))
+//  else if(g(u)>rhs(u))
+//    g(u) = rhs(u)
+//    for all s in Pred(u) UpdateVertex(s)
+//  else
+//    g(u) = inf
+//    for all s in (Pred(u) and u) UpdateVertex(s)
+// DCHECK
 int MoveIncremental::computeShortestPath() {
   
   list<state> s;
@@ -1427,6 +1302,7 @@ int MoveIncremental::computeShortestPath() {
   if (openList.empty()) return 1;
 
   int k=0;
+  // while(U.TopKey()<CalculateKey(s_start) OR rhs(s_start)!=g(s_start))
   while ((!openList.empty()) && 
          (openList.top() < (s_start = calculateKey(s_start))) || 
          (getRHS(s_start) != getG(s_start))) {
@@ -1436,12 +1312,12 @@ int MoveIncremental::computeShortestPath() {
       return -1;
     }
 
-
-    state u;
-
-    bool test = (getRHS(s_start) != getG(s_start));
+    // k_old = U.TopKey()
+    // u = U.Pop()
     
+    state u;
     // lazy remove
+    bool test = (getRHS(s_start) != getG(s_start));
     while(1) { 
       if (openList.empty()) return 1;
       u = openList.top();
@@ -1451,22 +1327,31 @@ int MoveIncremental::computeShortestPath() {
       if (!(u < s_start) && (!test)) return 2;
       break;
     }
-    
     ds_oh::iterator cur = openHash.find(u);
     openHash.erase(cur);
 
     state k_old = u;
 
+    // if(k_old<CalculateKey(u))
     if (k_old < calculateKey(u)) { // u is out of date
+      // U.Insert(u, CalculateKey(u))
       insert(u);
-    } else if (getG(u) > getRHS(u)) { // needs update (got better)
+    }
+    // else if(g(u)>rhs(u))
+    else if (getG(u) > getRHS(u)) { // needs update (got better)
+      // g(u) = rhs(u)
       setG(u,getRHS(u));
+      // for all s in Pred(u) UpdateVertex(s)
       getPred(u,s);
       for (i=s.begin();i != s.end(); i++) {
         updateVertex(*i);
       }
-    } else {   // g <= rhs, state has got worse
+    }
+    // else
+    else {   // g <= rhs, state has got worse
+      // g(u) = inf
       setG(u,INFINITY);
+      // for all s in (Pred(u) and u) UpdateVertex(s)
       getPred(u,s);
       for (i=s.begin();i != s.end(); i++) {
         updateVertex(*i);
@@ -1492,11 +1377,13 @@ bool MoveIncremental::close(double x, double y) {
  * --------------------------
  * As per [S. Koenig, 2002]
  */
+// DCHECK
 void MoveIncremental::updateVertex(state u) {
 
   list<state> s;
   list<state>::iterator i;
- 
+
+  // if(u!=s_goal) rhs(u)= min (s in Succ(u)) (c(u,s')+g(s'))
   if (u != s_goal) {
     getSucc(u,s);
     double tmp = INFINITY;
@@ -1509,8 +1396,10 @@ void MoveIncremental::updateVertex(state u) {
     if (!close(getRHS(u),tmp)) setRHS(u,tmp);
   }
 
+  // if (u in U) U.remove(u)
+  // if(g(u)!=rhs(u)) U.insert(u, CalculateKey(u))
   if (!close(getG(u),getRHS(u))) insert(u);
-  
+  // Note: duplicate is removed later in lazy remove
 }
 
 /* void Dstar::insert(state u) 
@@ -1573,6 +1462,7 @@ double MoveIncremental::heuristic(state a, state b) {
  * --------------------------
  * As per [S. Koenig, 2002]
  */
+// DCHECK
 state MoveIncremental::calculateKey(state u) {
   
   double val = fmin(getRHS(u),getG(u));
@@ -1581,7 +1471,6 @@ state MoveIncremental::calculateKey(state u) {
   u.k.second = val;
 
   return u;
-
 }
 
 /* double Dstar::cost(state a, state b)
@@ -1608,19 +1497,26 @@ double MoveIncremental::cost(state a, state b) {
  */
 void MoveIncremental::updateCell(int x, int y, double val) {
   
-   state u;
+  state u;
   
   u.x = x;
   u.y = y;
 
-  if ((u == s_start) || (u == s_goal)) return;
+  //if ((u == s_start) || (u == s_goal)) return;
 
-  makeNewCell(u); 
+  //makeNewCell(u); 
+
+  if(cellHash[u].cost == val) {
+    cellHash[u].cost_changed = false;
+  } else {
+    cellHash[u].cost_changed = true;
+  }
+
   cellHash[u].cost = val;
 
-  updateVertex(u);
+  //updateVertex(u);
 }
-
+  
 /* void Dstar::getSucc(state u,list<state> &s)
  * --------------------------
  * Returns a list of successor states for state u, since this is an
@@ -1635,22 +1531,32 @@ void MoveIncremental::getSucc(state u,list<state> &s) {
 
   if (occupied(u)) return;
 
+  makeNewCell(u);
+
   u.x += 1;
   s.push_front(u);
+  makeNewCell(u);
   u.y += 1;
   s.push_front(u);
+  makeNewCell(u);
   u.x -= 1;
   s.push_front(u);
+  makeNewCell(u);
   u.x -= 1;
   s.push_front(u);
+  makeNewCell(u);
   u.y -= 1;
   s.push_front(u);
+  makeNewCell(u);
   u.y -= 1;
   s.push_front(u);
+  makeNewCell(u);
   u.x += 1;
   s.push_front(u);
+  makeNewCell(u);
   u.x += 1;
   s.push_front(u);
+  makeNewCell(u);
 
 }
 
@@ -1685,50 +1591,71 @@ void MoveIncremental::getPred(state u,list<state> &s) {
   // u.x += 1; // TODO
   // if (!occupied(u)) s.push_front(u);
 
+  makeNewCell(u);
+
   u.x += 1;
-  if (!occupied(u)) s.push_front(u);
+  if (!occupied(u)) {
+    s.push_front(u);
+    makeNewCell(u);
+  }
   u.y += 1; // Case 1
 
   ua.x = u.x-1;
   ua.y = u.y;
   ub.x = u.x;
   ub.y = u.y-1;
-  if (!occupied(u) && !occupied(ua) && !occupied(ub) ) 
-      s.push_front(u);
-
+  if (!occupied(u) && !occupied(ua) && !occupied(ub) ) {
+    s.push_front(u);
+    makeNewCell(u);
+  }
 
   u.x -= 1;
-  if (!occupied(u)) s.push_front(u);
+  if (!occupied(u)) {
+    s.push_front(u);
+    makeNewCell(u);
+  }
   
   u.x -= 1; // Case 2
   ua.x = u.x+1;
   ua.y = u.y;
   ub.x = u.x;
   ub.y = u.y-1;
-  if (!occupied(u) && !occupied(ua) && !occupied(ub)) 
+  if (!occupied(u) && !occupied(ua) && !occupied(ub)) {
     s.push_front(u);
+    makeNewCell(u);
+  }
 
   u.y -= 1;
-  if (!occupied(u)) s.push_front(u);
+  if (!occupied(u)) {
+    s.push_front(u);
+    makeNewCell(u);
+  }
   
   u.y -= 1; // Case 3
   ua.x = u.x;
   ua.y = u.y+1;
   ub.x = u.x+1;
   ub.y = u.y;
-  if (!occupied(u) && !occupied(ua) && !occupied(ub)) 
+  if (!occupied(u) && !occupied(ua) && !occupied(ub)) {
     s.push_front(u);
+    makeNewCell(u);
+  }
   
   u.x += 1; 
-  if (!occupied(u)) s.push_front(u);
+  if (!occupied(u)) {
+    s.push_front(u);
+    makeNewCell(u);
+  }
   
   u.x += 1; // Case 4
   ua.x = u.x;
   ua.y = u.y+1;
   ub.x = u.x-1;
   ub.y = u.y;
-  if (!occupied(u) && !occupied(ua) && !occupied(ub)) 
+  if (!occupied(u) && !occupied(ua) && !occupied(ub)) {
     s.push_front(u);
+    makeNewCell(u);
+  }
   
 }
 
@@ -1741,10 +1668,11 @@ void MoveIncremental::updateStart(int x, int y) {
   s_start.x = x;
   s_start.y = y;
   
-  k_m += heuristic(s_last,s_start);
+  // // comment out
+  // k_m += heuristic(s_last,s_start);
 
-  s_start = calculateKey(s_start);
-  s_last  = s_start;
+  // s_start = calculateKey(s_start);
+  // s_last  = s_start;
   
 }
 
@@ -1758,49 +1686,71 @@ void MoveIncremental::updateStart(int x, int y) {
  * likely no longer use.
  */
 void MoveIncremental::updateGoal(int x, int y) {
-   
-  list< pair<ipoint2, double> > toAdd;
-  pair<ipoint2, double> tp;
-  
-  ds_ch::iterator i;
-  list< pair<ipoint2, double> >::iterator kk;
-  
-  for(i=cellHash.begin(); i!=cellHash.end(); i++) {
-    if (!close(i->second.cost, C1)) {
-      tp.first.x = i->first.x;
-      tp.first.y = i->first.y;
-      tp.second = i->second.cost;
-      toAdd.push_back(tp);
-    }
-  }
-
-  cellHash.clear();
-  openHash.clear();
-
-  while(!openList.empty())
-    openList.pop();
-  
-  k_m = 0;
-  
   s_goal.x  = x;
   s_goal.y  = y;
 
-  cellInfo tmp;
-  tmp.g = tmp.rhs =  0;
-  tmp.cost = C1;
+  // list< pair<ipoint2, double> > toAdd;
+  // pair<ipoint2, double> tp;
+  
+  // ds_ch::iterator i;
+  // list< pair<ipoint2, double> >::iterator kk;
+  
+  // for(i=cellHash.begin(); i!=cellHash.end(); i++) {
+  //   if (!close(i->second.cost, C1)) {
+  //     tp.first.x = i->first.x;
+  //     tp.first.y = i->first.y;
+  //     tp.second = i->second.cost;
+  //     toAdd.push_back(tp);
+  //   }
+  // }
 
-  cellHash[s_goal] = tmp;
+  // cellHash.clear();
+  // openHash.clear();
 
-  tmp.g = tmp.rhs = heuristic(s_start,s_goal);
-  tmp.cost = C1;
-  cellHash[s_start] = tmp;
-  s_start = calculateKey(s_start);
+  // while(!openList.empty())
+  //   openList.pop();
+  
+  // k_m = 0;
+  
+  // s_goal.x  = x;
+  // s_goal.y  = y;
 
-  s_last = s_start;    
+  // cellInfo tmp;
+  // tmp.g = tmp.rhs =  0;
+  // tmp.cost = C1;
 
-  for (kk=toAdd.begin(); kk != toAdd.end(); kk++) {
-    updateCell(kk->first.x, kk->first.y, kk->second);
-  }
+  // cellHash[s_goal] = tmp;
+
+  // tmp.g = tmp.rhs = heuristic(s_start,s_goal);
+  // tmp.cost = C1;
+  // cellHash[s_start] = tmp;
+  // s_start = calculateKey(s_start);
+
+  // s_last = s_start;    
+
+  // for (kk=toAdd.begin(); kk != toAdd.end(); kk++) {
+  //   //updateCell(kk->first.x, kk->first.y, kk->second);
+
+  //   state u;
+    
+  //   u.x = x;
+  //   u.y = y;
+
+  //   if ((u == s_start) || (u == s_goal)) return;
+
+  //   makeNewCell(u); 
+
+  //   if(cellHash[u].cost == kk->second) {
+  //     cellHash[u].cost_changed = false;
+  //   } else {
+  //     cellHash[u].cost_changed = true;
+  //   }
+
+  //   cellHash[u].cost = kk->second;
+
+  //   updateVertex(u);
+
+  // }
   
 
 }
@@ -1814,44 +1764,65 @@ void MoveIncremental::updateGoal(int x, int y) {
  * path that is near a 45 degree angle to goal we break ties based on
  *  the metric euclidean(state, goal) + euclidean(state,start). 
  */
+// Main algorithm: procedure Main()
+// 
+// s_last = s_start
+// Initialize()
+// ComputeShortestPath()
+// while (s_start != s_goal)
+//  if(g_start == inf) then there is no path
+//  s_start = arg min (s' in Succ(s_start)) (c(s_start, s')+g(s'))
+//  move to s_start
+//  scan graph for changed edge costs
+//  if any edge costs changed
+//      k_m = k_m + h(s_last, s_start)
+//      s_last = s_start
+//      for all directed edge (u, v) with changed edge costs
+//          update the edge cost c(u, v)
+//          UpdateVertex(u)
+//      ComputeShortestPath() 
 bool MoveIncremental::replan() {
+  list<state> n;
+  list<state>::iterator i;
 
   path.clear();
 
+  // s_last = s_start
+  s_last = s_start;
+  // if (std::isinf(getG(s_start))) {
+  //   fprintf(stderr, "NO PATH TO GOAL\n");
+  //   return false;
+  // }  
+  // Initialize()
+  initialize();
+
+  // ComputeShortestPath()
   int res = computeShortestPath();
-  //printf("res: %d ols: %d ohs: %d tk: [%f %f] sk: [%f %f] sgr: (%f,%f)\n",res,openList.size(),openHash.size(),openList.top().k.first,openList.top().k.second, s_start.k.first, s_start.k.second,getRHS(s_start),getG(s_start));
   if (res < 0) {
     fprintf(stderr, "NO PATH TO GOAL\n");
     return false;
   }
-  list<state> n;
-  list<state>::iterator i;
 
-  state cur = s_start; 
-
-  if (std::isinf(getG(s_start))) {
-    fprintf(stderr, "NO PATH TO GOAL\n");
-    return false;
-  }
-  
-  while(cur != s_goal) {
-    
-    path.push_back(cur);
-    getSucc(cur, n);
-
-    if (n.empty()) {
+  // while (s_start != s_goal)
+  while(s_start != s_goal) {
+    // if(g_start == inf) then there is no path
+    if (std::isinf(getG(s_start))) {
       fprintf(stderr, "NO PATH TO GOAL\n");
       return false;
     }
+    // s_start = arg min (s' in Succ(s_start)) (c(s_start, s')+g(s'))
+    getSucc(s_start, n);    // n is a list of Succ of cur
+    if (n.empty()) {
+      fprintf(stderr, "NO PATH TO GOAL\n");
+      return false;
+    }    
 
     double cmin = INFINITY;
     double tmin;
     state smin;
-    
     for (i=n.begin(); i!=n.end(); i++) {
-  
       //if (occupied(*i)) continue;
-      double val  = cost(cur,*i);
+      double val  = cost(s_start,*i);
       double val2 = trueDist(*i,s_goal) + trueDist(s_start,*i); // (Euclidean) cost to goal + cost to pred
       val += getG(*i);
 
@@ -1867,9 +1838,32 @@ bool MoveIncremental::replan() {
         smin = *i;
       }
     }
+    s_start = smin;
     n.clear();
-    cur = smin;
+
+    // move to s_start
+    path.push_back(s_start);
+
+    // scan graph for changed edge costs 
+    ds_ch::iterator j;
+    for(j=cellHash.begin(); j!=cellHash.end(); j++) {
+      // if any edge costs changed   
+      if(j->second.cost_changed) {
+        // k_m = k_m + h(s_last, s_start)
+        k_m = k_m + heuristic(s_last, s_start);
+        // s_last = s_start
+        s_last = s_start;
+        // for all directed edge (u, v) with changed edge costs
+        //    update the edge cost c(u, v)
+        //    UpdateVertex(u)
+        //    ComputeShortestPath()
+        updateVertex(j->first);
+        computeShortestPath();
+      }
+    }
+
   }
+
   path.push_back(s_goal);
   return true;
 }
