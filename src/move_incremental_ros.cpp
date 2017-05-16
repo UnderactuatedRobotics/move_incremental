@@ -82,6 +82,9 @@ void MoveIncrementalROS::initialize(std::string name, costmap_2d::Costmap2D *cos
     {
       costmap_ = costmap;
 
+      ptr_grid_backup_ = new std::vector<double>();
+      ptr_grid_backup_->resize(0);
+
       global_frame_ = global_frame;
 
       planner_ = boost::shared_ptr<MoveIncremental>(
@@ -357,6 +360,13 @@ int MoveIncrementalROS::plan(std::vector <geometry_msgs::PoseStamped> &grid_plan
   ROS_INFO("[MoveIncremental] Update cell costs");
 
   unsigned char *grid = costmap_->getCharMap();
+
+  if (0 == ptr_grid_backup_->size())
+  {
+    (*ptr_grid_backup_).resize(nx_cells * ny_cells);
+    std::fill(ptr_grid_backup_->begin(), ptr_grid_backup_->end(), -100000);
+  }
+
   for (int x = 0; x < (int) costmap_->getSizeInCellsX(); x++)
   {
     for (int y = 0; y < (int) costmap_->getSizeInCellsY(); y++)
@@ -366,22 +376,27 @@ int MoveIncrementalROS::plan(std::vector <geometry_msgs::PoseStamped> &grid_plan
       double c = (double) grid[index];
       //ROS_INFO_STREAM("[MoveIncremental]" << grid_plan[index]);
 
-      if (c >= COST_POSSIBLY_CIRCUMSCRIBED)
+      if(c != (*ptr_grid_backup_)[index])
       {
-        // cost = -1 -> untraversable
-        planner_->updateCell(x, y, -1);
-      }
-      else
-      {
-        if (c == costmap_2d::FREE_SPACE)
+        if (c >= COST_POSSIBLY_CIRCUMSCRIBED)
         {
-          planner_->updateCell(x, y, 1);
+          // cost = -1 -> untraversable
+          planner_->updateCell(x, y, -1);
         }
         else
         {
-          planner_->updateCell(x, y, c);
+          if (c == costmap_2d::FREE_SPACE)
+          {
+            planner_->updateCell(x, y, 1);
+          }
+          else
+          {
+            planner_->updateCell(x, y, c);
+          }
         }
       }
+
+      (*ptr_grid_backup_)[index] = c;
     }
   }
 

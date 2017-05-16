@@ -167,6 +167,7 @@ class MoveIncrementalROS : public nav_core::BaseGlobalPlanner
 
   //! Store a copy of the current costmap in \a costmap.  Called by makePlan.
   costmap_2d::Costmap2D *costmap_;
+  std::vector<double>* ptr_grid_backup_;
 
   //! D* Lite planner
   boost::shared_ptr <MoveIncremental> planner_;
