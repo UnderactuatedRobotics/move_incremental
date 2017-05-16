@@ -618,12 +618,11 @@ void MoveIncremental::updateStart(int x, int y)
 void MoveIncremental::updateGoal(int x, int y)
 {
 
-  list <pair<ipoint2, double>> toAdd;
+  list < pair<ipoint2, double> > toAdd;
   pair<ipoint2, double> tp;
 
   ds_ch::iterator i;
-  list < pair < ipoint2, double > > ::iterator
-  kk;
+  list < pair < ipoint2, double > >::iterator kk;
 
   for (i = cellHash.begin(); i != cellHash.end(); i++)
   {

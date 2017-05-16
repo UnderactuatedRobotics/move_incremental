@@ -187,6 +187,7 @@ class MoveIncremental
   //! cost of an unseen cell
   double C1;
 
+  //! key modifier
   double k_m;
 
   move_incremental::state s_start, s_goal, s_last;

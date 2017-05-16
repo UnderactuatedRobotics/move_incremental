@@ -336,6 +336,8 @@ int MoveIncrementalROS::plan(std::vector <geometry_msgs::PoseStamped> &grid_plan
 
   /// 1.Update Planner costs
   // TODO: cleanup to cut down running time, major bottleneck
+  // proposal: scan over map, and only update vertex that has changed cost
+
   int nx_cells, ny_cells;
   nx_cells = costmap_->getSizeInCellsX();
   ny_cells = costmap_->getSizeInCellsY();
@@ -349,9 +351,11 @@ int MoveIncrementalROS::plan(std::vector <geometry_msgs::PoseStamped> &grid_plan
       int index = costmap_->getIndex(x, y);
 
       double c = (double) grid[index];
+      //ROS_INFO_STREAM("[MoveIncremental]" << grid_plan[index]);
 
       if (c >= COST_POSSIBLY_CIRCUMSCRIBED)
       {
+        // cost = -1 -> untraversable
         planner_->updateCell(x, y, -1);
       }
       else
