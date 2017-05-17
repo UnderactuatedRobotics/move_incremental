@@ -200,6 +200,9 @@ namespace move_incremental {
 
         //make sure to resize the underlying array that MoveIncremental uses
         planner_->setNavArr(costmap_->getSizeInCellsX(), costmap_->getSizeInCellsY());
+
+        // D* Lite
+        // pass the costmap to the planner
         planner_->setCostmap(costmap_->getCharMap(), true, allow_unknown_);
 
         int map_start[2];
@@ -227,7 +230,7 @@ namespace move_incremental {
         //planner_->setGoal(map_start);
 
         // D* Lite, initialize start and goal
-        //planner_->init(map_start[0], map_start[1], map_goal[0], map_goal[1]); 
+        planner_->setCostmap2D(costmap_);
 
         geometry_msgs::PoseStamped s = start;
         geometry_msgs::PoseStamped g = goal;
@@ -446,7 +449,7 @@ namespace move_incremental {
         ny_cells = costmap_->getSizeInCellsY();
         ROS_DEBUG("Update cell costs");
 
-        unsigned char* grid = costmap_->getCharMap();
+        // unsigned char* grid = costmap_->getCharMap();
         // for(int x=0; x<(int)costmap_->getSizeInCellsX(); x++){
         //     for(int y=0; y<(int)costmap_->getSizeInCellsY(); y++){
         //         int index = costmap_->getIndex(x,y);
@@ -463,26 +466,6 @@ namespace move_incremental {
         //         }
         //     }
         // }
-        // iterate over cellHash
-        ds_ch plannerCellHash = planner_->getCellHash();
-        ds_ch::iterator i;
-          
-        for(i=plannerCellHash.begin(); i!=plannerCellHash.end(); i++) {
-            int x = i->first.x;
-            int y = i->first.y;
-            int index = costmap_->getIndex(x,y);
-            double c = (double)grid[index];
-
-            if( c >= COST_POSSIBLY_CIRCUMSCRIBED)
-                planner_->updateCell(x, y, -1);
-            else if (c == costmap_2d::FREE_SPACE){
-                planner_->updateCell(x, y, 1);
-            }else
-            {
-                planner_->updateCell(x, y, c);
-            }
-        }
-
 
         ROS_DEBUG("Replan");
         /// 2. Plannig using D* Lite

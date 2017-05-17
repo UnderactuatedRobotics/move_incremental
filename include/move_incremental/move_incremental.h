@@ -42,6 +42,10 @@
 #ifndef PROJECT_MOVE_INCREMENTAL_H
 #define PROJECT_MOVE_INCREMENTAL_H
 
+#include <ros/ros.h>
+#include <costmap_2d/cost_values.h>
+#include <costmap_2d/costmap_2d.h>
+
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -82,6 +86,8 @@
 
 // priority buffers
 #define PRIORITYBUFSIZE 10000
+
+#define COST_POSSIBLY_CIRCUMSCRIBED 253
 
 using namespace std;
 using namespace __gnu_cxx;
@@ -320,25 +326,6 @@ namespace move_incremental
          ********************
          */
 
-        /**
-         * @brief  Calculates a plan using the A* heuristic, returns true if one is found
-         * @return True if a plan is found, false otherwise
-         */
-        bool calcMoveIncrementalDstar();    /**< calculates a plan, returns true if found */
-
-        /**
-         * @brief  Updates the cell at index n using the A* heuristic
-         * @param n The index to update
-         */
-        void updateCellDstar(int n);    /**< updates the cell at index <n>, uses D* Lite heuristic */
-
-        /**
-         * @brief  Run propagation for <cycles> iterations, or until start is reached using the best-first D* method with Euclidean distance heuristic
-         * @param cycles The maximum number of iterations to run for
-         * @return true if the start point is reached
-         */
-        bool propMoveIncrementalDstar(int cycles); /**< returns true if start point found */
-
         void   init(int sX, int sY, int gX, int gY);
         void   updateCell(int x, int y, double val);
         void   updateStart(int x, int y);
@@ -348,6 +335,8 @@ namespace move_incremental
         list<state> getPath();
 
         ds_ch getCellHash();
+
+        void setCostmap2D(costmap_2d::Costmap2D* costmap);
 
     private:
         list<state> path;
@@ -360,6 +349,9 @@ namespace move_incremental
         ds_pq openList;
         ds_ch cellHash;
         ds_oh openHash;
+
+        costmap_2d::Costmap2D* cellCostmap;
+        unsigned char* cellCostGrid;
 
         void   initialize();
         bool   close(double x, double y);

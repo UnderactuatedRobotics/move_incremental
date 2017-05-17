@@ -238,31 +238,6 @@ namespace move_incremental
     bool
     MoveIncremental::calcMoveIncrementalDijkstra(bool atStart)
     {
-#if 0
-        static char costmap_filename[1000];
-      static int file_number = 0;
-      snprintf( costmap_filename, 1000, "MoveIncremental-dijkstra-costmap-%04d", file_number++ );
-      savemap( costmap_filename );
-#endif
-        setupMoveIncremental(true);
-
-        // calculate the nav fn and path
-        propMoveIncrementalDijkstra(std::max(nx*ny/20,nx+ny),atStart);
-
-        // path
-        int len = calcPath(nx*ny/2);
-
-        if (len > 0)			// found plan
-        {
-            ROS_INFO("[MoveIncremental] Path found, %d steps\n", len);
-            return true;
-        }
-        else
-        {
-            ROS_INFO("[MoveIncremental] No path found\n");
-            return false;
-        }
-
     }
 
 
@@ -273,24 +248,6 @@ namespace move_incremental
     bool
     MoveIncremental::calcMoveIncrementalAstar()
     {
-        setupMoveIncremental(true);
-
-        // calculate the nav fn and path
-        propMoveIncrementalAstar(std::max(nx*ny/20,nx+ny));
-
-        // path
-        int len = calcPath(nx*4);
-
-        if (len > 0)			// found plan
-        {
-            ROS_INFO("[MoveIncremental] Path found, %d steps\n", len);
-            return true;
-        }
-        else
-        {
-            ROS_INFO("[MoveIncremental] No path found\n");
-            return false;
-        }
     }
 
 
@@ -349,52 +306,7 @@ namespace move_incremental
     void
     MoveIncremental::setupMoveIncremental(bool keepit)
     {
-        // reset values in propagation arrays
-        for (int i=0; i<ns; i++)
-        {
-            potarr[i] = POT_HIGH;
-            if (!keepit) costarr[i] = COST_NEUTRAL;
-            gradx[i] = grady[i] = 0.0;
-        }
 
-        // outer bounds of cost array
-        COSTTYPE *pc;
-        pc = costarr;
-        for (int i=0; i<nx; i++)
-            *pc++ = COST_OBS;
-        pc = costarr + (ny-1)*nx;
-        for (int i=0; i<nx; i++)
-            *pc++ = COST_OBS;
-        pc = costarr;
-        for (int i=0; i<ny; i++, pc+=nx)
-            *pc = COST_OBS;
-        pc = costarr + nx - 1;
-        for (int i=0; i<ny; i++, pc+=nx)
-            *pc = COST_OBS;
-
-        // priority buffers
-        curT = COST_OBS;
-        curP = pb1;
-        curPe = 0;
-        nextP = pb2;
-        nextPe = 0;
-        overP = pb3;
-        overPe = 0;
-        memset(pending, 0, ns*sizeof(bool));
-
-        // set goal
-        int k = goal[0] + goal[1]*nx;
-        initCost(k,0);
-
-        // find # of obstacle cells
-        pc = costarr;
-        int ntot = 0;
-        for (int i=0; i<ns; i++, pc++)
-        {
-            if (*pc >= COST_OBS)
-                ntot++;			// number of cells that are obstacles
-        }
-        nobs = ntot;
     }
 
 
@@ -403,11 +315,7 @@ namespace move_incremental
     void
     MoveIncremental::initCost(int k, float v)
     {
-        potarr[k] = v;
-        push_cur(k+1);
-        push_cur(k-1);
-        push_cur(k-nx);
-        push_cur(k+nx);
+
     }
 
 
@@ -424,74 +332,6 @@ namespace move_incremental
     inline void
     MoveIncremental::updateCell(int n)
     {
-        // get neighbors
-        float u,d,l,r;
-        l = potarr[n-1];
-        r = potarr[n+1];
-        u = potarr[n-nx];
-        d = potarr[n+nx];
-        //  ROS_INFO("[Update] c: %0.1f  l: %0.1f  r: %0.1f  u: %0.1f  d: %0.1f\n",
-        //	 potarr[n], l, r, u, d);
-        //  ROS_INFO("[Update] cost: %d\n", costarr[n]);
-
-        // find lowest, and its lowest neighbor
-        float ta, tc;
-        if (l<r) tc=l; else tc=r;
-        if (u<d) ta=u; else ta=d;
-
-        // do planar wave update
-        if (costarr[n] < COST_OBS)	// don't propagate into obstacles
-        {
-            float hf = (float)costarr[n]; // traversability factor
-            float dc = tc-ta;		// relative cost between ta,tc
-            if (dc < 0) 		// ta is lowest
-            {
-                dc = -dc;
-                ta = tc;
-            }
-
-            // calculate new potential
-            float pot;
-            if (dc >= hf)		// if too large, use ta-only update
-                pot = ta+hf;
-            else			// two-neighbor interpolation update
-            {
-                // use quadratic approximation
-                // might speed this up through table lookup, but still have to
-                //   do the divide
-                float d = dc/hf;
-                float v = -0.2301*d*d + 0.5307*d + 0.7040;
-                pot = ta + hf*v;
-            }
-
-            //      ROS_INFO("[Update] new pot: %d\n", costarr[n]);
-
-            // now add affected neighbors to priority blocks
-            if (pot < potarr[n])
-            {
-                float le = INVSQRT2*(float)costarr[n-1];
-                float re = INVSQRT2*(float)costarr[n+1];
-                float ue = INVSQRT2*(float)costarr[n-nx];
-                float de = INVSQRT2*(float)costarr[n+nx];
-                potarr[n] = pot;
-                if (pot < curT)	// low-cost buffer block
-                {
-                    if (l > pot+le) push_next(n-1);
-                    if (r > pot+re) push_next(n+1);
-                    if (u > pot+ue) push_next(n-nx);
-                    if (d > pot+de) push_next(n+nx);
-                }
-                else			// overflow block
-                {
-                    if (l > pot+le) push_over(n-1);
-                    if (r > pot+re) push_over(n+1);
-                    if (u > pot+ue) push_over(n-nx);
-                    if (d > pot+de) push_over(n+nx);
-                }
-            }
-
-        }
-
     }
 
 
@@ -509,81 +349,6 @@ namespace move_incremental
     inline void
     MoveIncremental::updateCellAstar(int n)
     {
-        // get neighbors
-        float u,d,l,r;
-        l = potarr[n-1];
-        r = potarr[n+1];
-        u = potarr[n-nx];
-        d = potarr[n+nx];
-        //ROS_INFO("[Update] c: %0.1f  l: %0.1f  r: %0.1f  u: %0.1f  d: %0.1f\n",
-        //	 potarr[n], l, r, u, d);
-        // ROS_INFO("[Update] cost of %d: %d\n", n, costarr[n]);
-
-        // find lowest, and its lowest neighbor
-        float ta, tc;
-        if (l<r) tc=l; else tc=r;
-        if (u<d) ta=u; else ta=d;
-
-        // do planar wave update
-        if (costarr[n] < COST_OBS)	// don't propagate into obstacles
-        {
-            float hf = (float)costarr[n]; // traversability factor
-            float dc = tc-ta;		// relative cost between ta,tc
-            if (dc < 0) 		// ta is lowest
-            {
-                dc = -dc;
-                ta = tc;
-            }
-
-            // calculate new potential
-            float pot;
-            if (dc >= hf)		// if too large, use ta-only update
-                pot = ta+hf;
-            else			// two-neighbor interpolation update
-            {
-                // use quadratic approximation
-                // might speed this up through table lookup, but still have to
-                //   do the divide
-                float d = dc/hf;
-                float v = -0.2301*d*d + 0.5307*d + 0.7040;
-                pot = ta + hf*v;
-            }
-
-            //ROS_INFO("[Update] new pot: %d\n", costarr[n]);
-
-            // now add affected neighbors to priority blocks
-            if (pot < potarr[n])
-            {
-                float le = INVSQRT2*(float)costarr[n-1];
-                float re = INVSQRT2*(float)costarr[n+1];
-                float ue = INVSQRT2*(float)costarr[n-nx];
-                float de = INVSQRT2*(float)costarr[n+nx];
-
-                // calculate distance
-                int x = n%nx;
-                int y = n/nx;
-                float dist = hypot(x-start[0], y-start[1])*(float)COST_NEUTRAL;
-
-                potarr[n] = pot;
-                pot += dist;
-                if (pot < curT)	// low-cost buffer block
-                {
-                    if (l > pot+le) push_next(n-1);
-                    if (r > pot+re) push_next(n+1);
-                    if (u > pot+ue) push_next(n-nx);
-                    if (d > pot+de) push_next(n+nx);
-                }
-                else
-                {
-                    if (l > pot+le) push_over(n-1);
-                    if (r > pot+re) push_over(n+1);
-                    if (u > pot+ue) push_over(n-nx);
-                    if (d > pot+de) push_over(n+nx);
-                }
-            }
-
-        }
-
     }
 
 
@@ -599,68 +364,6 @@ namespace move_incremental
     bool
     MoveIncremental::propMoveIncrementalDijkstra(int cycles, bool atStart)
     {
-        int nwv = 0;			// max priority block size
-        int nc = 0;			// number of cells put into priority blocks
-        int cycle = 0;		// which cycle we're on
-
-        // set up start cell
-        int startCell = start[1]*nx + start[0];
-
-        for (; cycle < cycles; cycle++) // go for this many cycles, unless interrupted
-        {
-            //
-            if (curPe == 0 && nextPe == 0) // priority blocks empty
-                break;
-
-            // stats
-            nc += curPe;
-            if (curPe > nwv)
-                nwv = curPe;
-
-            // reset pending flags on current priority buffer
-            int *pb = curP;
-            int i = curPe;
-            while (i-- > 0)
-                pending[*(pb++)] = false;
-
-            // process current priority buffer
-            pb = curP;
-            i = curPe;
-            while (i-- > 0)
-                updateCell(*pb++);
-
-            if (displayInt > 0 &&  (cycle % displayInt) == 0)
-                displayFn(this);
-
-            // swap priority blocks curP <=> nextP
-            curPe = nextPe;
-            nextPe = 0;
-            pb = curP;		// swap buffers
-            curP = nextP;
-            nextP = pb;
-
-            // see if we're done with this priority level
-            if (curPe == 0)
-            {
-                curT += priInc;	// increment priority threshold
-                curPe = overPe;	// set current to overflow block
-                overPe = 0;
-                pb = curP;		// swap buffers
-                curP = overP;
-                overP = pb;
-            }
-
-            // check if we've hit the Start cell
-            if (atStart)
-                if (potarr[startCell] < POT_HIGH)
-                    break;
-        }
-
-        ROS_INFO("[MoveIncremental] Used %d cycles, %d cells visited (%d%%), priority buf max %d\n",
-                  cycle,nc,(int)((nc*100.0)/(ns-nobs)),nwv);
-
-        if (cycle < cycles) return true; // finished up here
-        else return false;
     }
 
 
@@ -676,76 +379,6 @@ namespace move_incremental
     bool
     MoveIncremental::propMoveIncrementalAstar(int cycles)
     {
-        int nwv = 0;			// max priority block size
-        int nc = 0;			// number of cells put into priority blocks
-        int cycle = 0;		// which cycle we're on
-
-        // set initial threshold, based on distance
-        float dist = hypot(goal[0]-start[0], goal[1]-start[1])*(float)COST_NEUTRAL;
-        curT = dist + curT;
-
-        // set up start cell
-        int startCell = start[1]*nx + start[0];
-
-        // do main cycle
-        for (; cycle < cycles; cycle++) // go for this many cycles, unless interrupted
-        {
-            //
-            if (curPe == 0 && nextPe == 0) // priority blocks empty
-                break;
-
-            // stats
-            nc += curPe;
-            if (curPe > nwv)
-                nwv = curPe;
-
-            // reset pending flags on current priority buffer
-            int *pb = curP;
-            int i = curPe;
-            while (i-- > 0)
-                pending[*(pb++)] = false;
-
-            // process current priority buffer
-            pb = curP;
-            i = curPe;
-            while (i-- > 0)
-                updateCellAstar(*pb++);
-
-            if (displayInt > 0 &&  (cycle % displayInt) == 0)
-                displayFn(this);
-
-            // swap priority blocks curP <=> nextP
-            curPe = nextPe;
-            nextPe = 0;
-            pb = curP;		// swap buffers
-            curP = nextP;
-            nextP = pb;
-
-            // see if we're done with this priority level
-            if (curPe == 0)
-            {
-                curT += priInc;	// increment priority threshold
-                curPe = overPe;	// set current to overflow block
-                overPe = 0;
-                pb = curP;		// swap buffers
-                curP = overP;
-                overP = pb;
-            }
-
-            // check if we've hit the Start cell
-            if (potarr[startCell] < POT_HIGH)
-                break;
-
-        }
-
-        last_path_cost_ = potarr[startCell];
-
-        ROS_INFO("[MoveIncremental] Used %d cycles, %d cells visited (%d%%), priority buf max %d\n",
-                  cycle,nc,(int)((nc*100.0)/(ns-nobs)),nwv);
-
-
-        if (potarr[startCell] < POT_HIGH) return true; // finished up here
-        else return false;
     }
 
 
@@ -769,160 +402,6 @@ namespace move_incremental
     int
     MoveIncremental::calcPath(int n, int *st)
     {
-        // test write
-        //savemap("test");
-
-        // check path arrays
-        if (npathbuf < n)
-        {
-            if (pathx) delete [] pathx;
-            if (pathy) delete [] pathy;
-            pathx = new float[n];
-            pathy = new float[n];
-            npathbuf = n;
-        }
-
-        // set up start position at cell
-        // st is always upper left corner for 4-point bilinear interpolation
-        if (st == NULL) st = start;
-        int stc = st[1]*nx + st[0];
-
-        // set up offset
-        float dx=0;
-        float dy=0;
-        npath = 0;
-
-        // go for <n> cycles at most
-        for (int i=0; i<n; i++)
-        {
-            // check if near goal
-            int nearest_point=std::max(0,std::min(nx*ny-1,stc+(int)round(dx)+(int)(nx*round(dy))));
-            if (potarr[nearest_point] < COST_NEUTRAL)
-            {
-                pathx[npath] = (float)goal[0];
-                pathy[npath] = (float)goal[1];
-                return ++npath;	// done!
-            }
-
-            if (stc < nx || stc > ns-nx) // would be out of bounds
-            {
-                ROS_INFO("[PathCalc] Out of bounds");
-                return 0;
-            }
-
-            // add to path
-            pathx[npath] = stc%nx + dx;
-            pathy[npath] = stc/nx + dy;
-            npath++;
-
-            bool oscillation_detected = false;
-            if( npath > 2 &&
-                pathx[npath-1] == pathx[npath-3] &&
-                pathy[npath-1] == pathy[npath-3] )
-            {
-                ROS_INFO("[PathCalc] oscillation detected, attempting fix.");
-                oscillation_detected = true;
-            }
-
-            int stcnx = stc+nx;
-            int stcpx = stc-nx;
-
-            // check for potentials at eight positions near cell
-            if (potarr[stc] >= POT_HIGH ||
-                potarr[stc+1] >= POT_HIGH ||
-                potarr[stc-1] >= POT_HIGH ||
-                potarr[stcnx] >= POT_HIGH ||
-                potarr[stcnx+1] >= POT_HIGH ||
-                potarr[stcnx-1] >= POT_HIGH ||
-                potarr[stcpx] >= POT_HIGH ||
-                potarr[stcpx+1] >= POT_HIGH ||
-                potarr[stcpx-1] >= POT_HIGH ||
-                oscillation_detected)
-            {
-                ROS_INFO("[Path] Pot fn boundary, following grid (%0.1f/%d)", potarr[stc], npath);
-                // check eight neighbors to find the lowest
-                int minc = stc;
-                int minp = potarr[stc];
-                int st = stcpx - 1;
-                if (potarr[st] < minp) {minp = potarr[st]; minc = st; }
-                st++;
-                if (potarr[st] < minp) {minp = potarr[st]; minc = st; }
-                st++;
-                if (potarr[st] < minp) {minp = potarr[st]; minc = st; }
-                st = stc-1;
-                if (potarr[st] < minp) {minp = potarr[st]; minc = st; }
-                st = stc+1;
-                if (potarr[st] < minp) {minp = potarr[st]; minc = st; }
-                st = stcnx-1;
-                if (potarr[st] < minp) {minp = potarr[st]; minc = st; }
-                st++;
-                if (potarr[st] < minp) {minp = potarr[st]; minc = st; }
-                st++;
-                if (potarr[st] < minp) {minp = potarr[st]; minc = st; }
-                stc = minc;
-                dx = 0;
-                dy = 0;
-
-                ROS_INFO("[Path] Pot: %0.1f  pos: %0.1f,%0.1f",
-                          potarr[stc], pathx[npath-1], pathy[npath-1]);
-
-                if (potarr[stc] >= POT_HIGH)
-                {
-                    ROS_INFO("[PathCalc] No path found, high potential");
-                    //savemap("MoveIncremental_highpot");
-                    return 0;
-                }
-            }
-
-                // have a good gradient here
-            else
-            {
-
-                // get grad at four positions near cell
-                gradCell(stc);
-                gradCell(stc+1);
-                gradCell(stcnx);
-                gradCell(stcnx+1);
-
-
-                // get interpolated gradient
-                float x1 = (1.0-dx)*gradx[stc] + dx*gradx[stc+1];
-                float x2 = (1.0-dx)*gradx[stcnx] + dx*gradx[stcnx+1];
-                float x = (1.0-dy)*x1 + dy*x2; // interpolated x
-                float y1 = (1.0-dx)*grady[stc] + dx*grady[stc+1];
-                float y2 = (1.0-dx)*grady[stcnx] + dx*grady[stcnx+1];
-                float y = (1.0-dy)*y1 + dy*y2; // interpolated y
-
-                // show gradients
-                ROS_INFO("[Path] %0.2f,%0.2f  %0.2f,%0.2f  %0.2f,%0.2f  %0.2f,%0.2f; final x=%.3f, y=%.3f\n",
-                          gradx[stc], grady[stc], gradx[stc+1], grady[stc+1],
-                          gradx[stcnx], grady[stcnx], gradx[stcnx+1], grady[stcnx+1],
-                          x, y);
-
-                // check for zero gradient, failed
-                if (x == 0.0 && y == 0.0)
-                {
-                    ROS_INFO("[PathCalc] Zero gradient");
-                    return 0;
-                }
-
-                // move in the right direction
-                float ss = pathStep/hypot(x, y);
-                dx += x*ss;
-                dy += y*ss;
-
-                // check for overflow
-                if (dx > 1.0) { stc++; dx -= 1.0; }
-                if (dx < -1.0) { stc--; dx += 1.0; }
-                if (dy > 1.0) { stc+=nx; dy -= 1.0; }
-                if (dy < -1.0) { stc-=nx; dy += 1.0; }
-
-            }
-
-            //      ROS_INFO("[Path] Pot: %0.1f  grad: %0.1f,%0.1f  pos: %0.1f,%0.1f\n",
-            //	     potarr[stc], x, y, pathx[npath-1], pathy[npath-1]);
-        }
-
         //  return npath;			// out of cycles, return failure
         ROS_INFO("[PathCalc] No path found, path too long");
         //savemap("MoveIncremental_pathlong");
@@ -1011,32 +490,6 @@ namespace move_incremental
     void
     MoveIncremental::savemap(const char *fname)
     {
-        char fn[4096];
-
-        ROS_INFO("[MoveIncremental] Saving costmap and start/goal points");
-        // write start and goal points
-        sprintf(fn,"%s.txt",fname);
-        FILE *fp = fopen(fn,"w");
-        if (!fp)
-        {
-            ROS_WARN("Can't open file %s", fn);
-            return;
-        }
-        fprintf(fp,"Goal: %d %d\nStart: %d %d\n",goal[0],goal[1],start[0],start[1]);
-        fclose(fp);
-
-        // write cost array
-        if (!costarr) return;
-        sprintf(fn,"%s.pgm",fname);
-        fp = fopen(fn,"wb");
-        if (!fp)
-        {
-            ROS_WARN("Can't open file %s", fn);
-            return;
-        }
-        fprintf(fp,"P5\n%d\n%d\n%d\n", nx, ny, 0xff);
-        fwrite(costarr,1,nx*ny,fp);
-        fclose(fp);
     }
 
     /********************
@@ -1044,24 +497,9 @@ namespace move_incremental
      ********************
      */
 
-    bool
-    MoveIncremental::calcMoveIncrementalDstar()
-    {
-
-    }
-
-#define INVSQRT2 0.707106781
-
-    inline void
-    MoveIncremental::updateCellDstar(int n)
-    {
-
-    }
-
-    bool
-    MoveIncremental::propMoveIncrementalDstar(int cycles)
-    {
-
+    void MoveIncremental::setCostmap2D(costmap_2d::Costmap2D* costmap) {
+      cellCostmap = costmap;
+      cellCostGrid = cellCostmap->getCharMap();
     }
 
     /********************
@@ -1197,10 +635,13 @@ void MoveIncremental::makeNewCell(state u) {
   
   if (cellHash.find(u) != cellHash.end()) return;
 
+  int x = u.x;
+  int y = u.y;
+  int index = cellCostmap->getIndex(x,y);
+
   cellInfo tmp;
-  //tmp.g       = tmp.rhs = heuristic(u,s_goal);
   tmp.g       = tmp.rhs = INFINITY;
-  tmp.cost    = C1;
+  tmp.cost    = (double)cellCostGrid[index];
   tmp.cost_changed = false;
 
   cellHash[u] = tmp;  
@@ -1843,10 +1284,23 @@ bool MoveIncremental::replan() {
 
     // move to s_start
     path.push_back(s_start);
-
-    // scan graph for changed edge costs 
+ 
     ds_ch::iterator j;
     for(j=cellHash.begin(); j!=cellHash.end(); j++) {
+      // scan graph for changed edge costs
+      int x = j->first.x;
+      int y = j->first.y;
+      int index = cellCostmap->getIndex(x,y);
+      double c = (double)cellCostGrid[index];
+
+      if( c >= COST_POSSIBLY_CIRCUMSCRIBED)
+          updateCell(x, y, -1);
+      else if (c == costmap_2d::FREE_SPACE){
+          updateCell(x, y, 1);
+      }else
+      {
+          updateCell(x, y, c);
+      }      
       // if any edge costs changed   
       if(j->second.cost_changed) {
         // k_m = k_m + h(s_last, s_start)
