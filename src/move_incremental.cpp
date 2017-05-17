@@ -1137,71 +1137,14 @@ void MoveIncremental::updateStart(int x, int y) {
 void MoveIncremental::updateGoal(int x, int y) {
   s_goal.x  = x;
   s_goal.y  = y;
+}
 
-  // list< pair<ipoint2, double> > toAdd;
-  // pair<ipoint2, double> tp;
-  
-  // ds_ch::iterator i;
-  // list< pair<ipoint2, double> >::iterator kk;
-  
-  // for(i=cellHash.begin(); i!=cellHash.end(); i++) {
-  //   if (!close(i->second.cost, C1)) {
-  //     tp.first.x = i->first.x;
-  //     tp.first.y = i->first.y;
-  //     tp.second = i->second.cost;
-  //     toAdd.push_back(tp);
-  //   }
-  // }
-
-  // cellHash.clear();
-  // openHash.clear();
-
-  // while(!openList.empty())
-  //   openList.pop();
-  
-  // k_m = 0;
-  
-  // s_goal.x  = x;
-  // s_goal.y  = y;
-
-  // cellInfo tmp;
-  // tmp.g = tmp.rhs =  0;
-  // tmp.cost = C1;
-
-  // cellHash[s_goal] = tmp;
-
-  // tmp.g = tmp.rhs = heuristic(s_start,s_goal);
-  // tmp.cost = C1;
-  // cellHash[s_start] = tmp;
-  // s_start = calculateKey(s_start);
-
-  // s_last = s_start;    
-
-  // for (kk=toAdd.begin(); kk != toAdd.end(); kk++) {
-  //   //updateCell(kk->first.x, kk->first.y, kk->second);
-
-  //   state u;
-    
-  //   u.x = x;
-  //   u.y = y;
-
-  //   if ((u == s_start) || (u == s_goal)) return;
-
-  //   makeNewCell(u); 
-
-  //   if(cellHash[u].cost == kk->second) {
-  //     cellHash[u].cost_changed = false;
-  //   } else {
-  //     cellHash[u].cost_changed = true;
-  //   }
-
-  //   cellHash[u].cost = kk->second;
-
-  //   updateVertex(u);
-
-  // }
-  
-
+bool MoveIncremental::goalChanged(int x, int y) {
+  if (s_goal.x == x && s_goal.y  == y) {
+    return false;
+  } else {
+    return true;
+  }
 }
 
 /* bool Dstar::replan()
@@ -1315,7 +1258,7 @@ bool MoveIncremental::replan() {
 
   }
 
-  path.push_back(s_goal);
+  //path.push_back(s_goal);
   return true;
 }
 

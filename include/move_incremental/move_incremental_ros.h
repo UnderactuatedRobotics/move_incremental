@@ -54,7 +54,7 @@
 #include <move_incremental/move_incremental.h>
 #include <move_incremental/potarr_point.h>
 
-#define COST_POSSIBLY_CIRCUMSCRIBED 253
+//#define COST_POSSIBLY_CIRCUMSCRIBED 253
 
 namespace move_incremental
 {

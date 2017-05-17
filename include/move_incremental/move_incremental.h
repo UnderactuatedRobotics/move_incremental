@@ -87,7 +87,7 @@
 // priority buffers
 #define PRIORITYBUFSIZE 10000
 
-#define COST_POSSIBLY_CIRCUMSCRIBED 253
+#define COST_POSSIBLY_CIRCUMSCRIBED 128
 
 using namespace std;
 using namespace __gnu_cxx;
@@ -326,12 +326,13 @@ namespace move_incremental
          ********************
          */
         void   initialize();
-        
+
         void   init(int sX, int sY, int gX, int gY);
         void   updateCell(int x, int y, double val);
         void   updateStart(int x, int y);
         void   updateGoal(int x, int y);
         bool   replan();
+        bool   goalChanged(int x, int y);
 
         list<state> getPath();
 

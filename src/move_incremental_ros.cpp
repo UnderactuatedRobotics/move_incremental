@@ -237,9 +237,12 @@ namespace move_incremental {
         geometry_msgs::PoseStamped s = start;
         geometry_msgs::PoseStamped g = goal;
 
+        bool goal_changed = planner_->goalChanged(map_goal[0], map_goal[1]);
+
         planner_->updateStart(map_start[0], map_start[1]);
         planner_->updateGoal(map_goal[0], map_goal[1]);
-        if(initial_plan) {
+
+        if(initial_plan || goal_changed) {
             planner_->initialize();
             initial_plan = false;
         }
