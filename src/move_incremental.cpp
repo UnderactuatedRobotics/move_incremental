@@ -601,6 +601,8 @@ void MoveIncremental::init(int sX, int sY, int gX, int gY) {
  * [S. Koenig, 2002]
  */
 void MoveIncremental::initialize() {
+  s_last = s_start;
+
   cellHash.clear();
   cellHash.resize(160000);
   path.clear();
@@ -624,6 +626,12 @@ void MoveIncremental::initialize() {
 
   insert(calculateKey(s_goal));
   cellHash[s_goal] = tmp;
+
+  // ComputeShortestPath()
+  int res = computeShortestPath();
+  if (res < 0) {
+    fprintf(stderr, "NO PATH TO GOAL\n");
+  }
 }
 
 
@@ -1228,21 +1236,10 @@ bool MoveIncremental::replan() {
 
   path.clear();
 
+  // The following only gets called once in ROS:makeplan()
   // s_last = s_start
-  s_last = s_start;
-  // if (std::isinf(getG(s_start))) {
-  //   fprintf(stderr, "NO PATH TO GOAL\n");
-  //   return false;
-  // }  
   // Initialize()
-  initialize();
-
   // ComputeShortestPath()
-  int res = computeShortestPath();
-  if (res < 0) {
-    fprintf(stderr, "NO PATH TO GOAL\n");
-    return false;
-  }
 
   // while (s_start != s_goal)
   while(s_start != s_goal) {

@@ -172,6 +172,8 @@ namespace move_incremental
         boost::mutex mutex_;
         ros::ServiceServer make_plan_srv_;
         std::string global_frame_;
+
+        bool initial_plan;
     };
 };// namspace move_incremental
 

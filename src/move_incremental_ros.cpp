@@ -97,6 +97,8 @@ namespace move_incremental {
 
             initialized_ = true;
 
+            initial_plan = true;
+
             ROS_INFO("[MoveIncremental] Hey we are here!! Incremental Path Planning!");
         } else
             ROS_WARN("This planner has already been initialized, you can't call it twice, doing nothing");
@@ -234,6 +236,13 @@ namespace move_incremental {
 
         geometry_msgs::PoseStamped s = start;
         geometry_msgs::PoseStamped g = goal;
+
+        planner_->updateStart(map_start[0], map_start[1]);
+        planner_->updateGoal(map_goal[0], map_goal[1]);
+        if(initial_plan) {
+            planner_->initialize();
+            initial_plan = false;
+        }
 
         std::vector< geometry_msgs::PoseStamped > grid_plan;
         ROS_DEBUG("Start To plan");

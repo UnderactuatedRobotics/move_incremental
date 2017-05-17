@@ -325,7 +325,8 @@ namespace move_incremental
          * D* Lite
          ********************
          */
-
+        void   initialize();
+        
         void   init(int sX, int sY, int gX, int gY);
         void   updateCell(int x, int y, double val);
         void   updateStart(int x, int y);
@@ -353,7 +354,7 @@ namespace move_incremental
         costmap_2d::Costmap2D* cellCostmap;
         unsigned char* cellCostGrid;
 
-        void   initialize();
+        
         bool   close(double x, double y);
         void   makeNewCell(state u);
         double getG(state u);
